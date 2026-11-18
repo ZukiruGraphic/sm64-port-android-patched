@@ -20,6 +20,8 @@ extern "C" float g_camDragYaw = 0.0f;
 extern "C" float g_camDragPitch = 0.0f;
 extern float configSensH;
 extern float configSensV;
+extern float configAnalogSens;
+extern int configInvertY;
 extern "C" float g_LakituZoomDist;
 extern float configZoom; // Zoom Lakitu dari Z+ / Z- baru, bukan DPad game
 extern "C" int g_ZoomHold; // -1 = Z- tahan, 0 = diam, 1 = Z+ tahan
@@ -68,7 +70,9 @@ void imgui_menu_process_event(void *ev) {
         // Kamera tetep bisa digeser walau ImGui kebuka, buat debug rendering
         // Kalo jari di atas ImGui (WantCaptureMouse), jangan jadi drag kamera, biar bisa klik menu
         // Kalo jari di area game (walau ImGui kebuka), tetep jadi drag kamera
-        if (event->type == SDL_FINGERDOWN) {
+        extern int g_editButtonMode;
+        if (g_editButtonMode) { s_camFingerId = 0; s_lastFingerX = -1; s_lastFingerY = -1; g_camDragYaw = 0; g_camDragPitch = 0; } // BLOCK: pas edit, drag area kosong jangan jadi jari kamera
+        else if (event->type == SDL_FINGERDOWN) {
             // Block 40% kiri buat joystick + bedain jari pake fingerId
             // Kalo jari kamera udah ada, jangan timpa sama jari joystick / jari kedua
             if (io.WantCaptureMouse || event->tfinger.x < 0.4f || s_camFingerId != 0) {
@@ -78,11 +82,11 @@ void imgui_menu_process_event(void *ev) {
                 s_lastFingerX = event->tfinger.x;
                 s_lastFingerY = event->tfinger.y;
             }
-        } else if (event->type == SDL_FINGERMOTION && s_lastFingerX >= 0 && event->tfinger.fingerId == s_camFingerId) {
+        } else if (event->type == SDL_FINGERMOTION && !g_editButtonMode && s_lastFingerX >= 0 && event->tfinger.fingerId == s_camFingerId) { // BLOCK: pas edit, jangan muter kamera
             float dx = event->tfinger.x - s_lastFingerX;
             float dy = event->tfinger.y - s_lastFingerY;
             g_camDragYaw -= dx * 18000.0f * configSensH; // 12000, naik 1.5x dari 8000, biar lebih sensitif! // 8000, dari 80000 kegedean 10x = mental! // 10x (8000*10) // 3x, dikurangi dari 3.5x // 3.5x (8000*3.5), turun dari 30x, 30x kegedean // 30x (8000*30) // x10 (8000*10) // 5x (8000*5)
-            g_camDragPitch += dy * 9000.0f * configSensV; // 6000, naik 1.5x dari 4000! // 4000, dari 40000! // 10x (4000*10) // 3x, dikurangi dari 3.5x // 3.5x (4000*3.5) // 30x (4000*30) // x10 (4000*10) // 5x (4000*5)
+            g_camDragPitch += dy * 9000.0f * configSensV * (configInvertY ? -1.0f : 1.0f); // 6000, naik 1.5x dari 4000! // 4000, dari 40000! // 10x (4000*10) // 3x, dikurangi dari 3.5x // 3.5x (4000*3.5) // 30x (4000*30) // x10 (4000*10) // 5x (4000*5)
             s_lastFingerX = event->tfinger.x;
             s_lastFingerY = event->tfinger.y;
         } else if (event->type == SDL_FINGERUP) {
@@ -118,6 +122,24 @@ void imgui_menu_frame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
+    {
+        extern int g_editButtonMode;
+        extern float g_gridSize;
+        extern int g_showCenter;
+        if (g_editButtonMode && g_showCenter) {
+            ImDrawList* dl = ImGui::GetBackgroundDrawList();
+            ImVec2 sz = ImGui::GetIO().DisplaySize;
+            float cx = sz.x * 0.5f;
+            float cy = sz.y * 0.5f;
+            float gs = g_gridSize;
+            dl->AddLine(ImVec2(cx, 0), ImVec2(cx, sz.y), IM_COL32(255,255,255,255), 2.5f);
+            dl->AddLine(ImVec2(0, cy), ImVec2(sz.x, cy), IM_COL32(255,255,255,255), 2.5f);
+            for (float gx = cx + gs; gx < sz.x; gx += gs) dl->AddLine(ImVec2(gx, 0), ImVec2(gx, sz.y), IM_COL32(255,255,255,140), 1.5f);
+            for (float gx = cx - gs; gx > 0; gx -= gs) dl->AddLine(ImVec2(gx, 0), ImVec2(gx, sz.y), IM_COL32(255,255,255,140), 1.5f);
+            for (float gy = cy + gs; gy < sz.y; gy += gs) dl->AddLine(ImVec2(0, gy), ImVec2(sz.x, gy), IM_COL32(255,255,255,140), 1.5f);
+            for (float gy = cy - gs; gy > 0; gy -= gs) dl->AddLine(ImVec2(0, gy), ImVec2(sz.x, gy), IM_COL32(255,255,255,140), 1.5f);
+        }
+    }
     if (sToastTimer > 0 && sToast[0]) { ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always); ImGui::Begin("##toast", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize); ImGui::Text("%s", sToast); ImGui::End(); }
     if (g_imgui_visible) {
         ImGui::SetNextWindowSize(ImVec2(900, 550), ImGuiCond_FirstUseEver);
@@ -181,6 +203,54 @@ void imgui_menu_frame() {
             ImGui::SetNextItemWidth(-1);
             if (ImGui::SliderFloat("##sensV", &configSensV, 0.1f, 5.0f, "%.1f")) { configfile_save(configfile_name()); } // Auto-save!
             ImGui::Text("Default 1.0 = 18000 / 9000, Max 5.0");
+            ImGui::Separator();
+            ImGui::Text("Analog Stick Sensitivity");
+            ImGui::SetNextItemWidth(-1);
+            float analogSens = configAnalogSens;
+            if (ImGui::SliderFloat("##analogSens", &configAnalogSens, 0.5f, 3.0f, "%.1f")) { configfile_save(configfile_name()); }
+            ImGui::Text("Invert Camera Y");
+            bool invertY = configInvertY != 0;
+            if (ImGui::Checkbox("Invert Y", &invertY)) { configInvertY = invertY ? 1 : 0; configfile_save(configfile_name()); }
+            ImGui::Separator();
+            ImGui::Text("Touchscreen Button");
+            ImGui::SetNextItemWidth(-1);
+            static float touchScale = 1.0f;
+            ImGui::Text("Size");
+            if (ImGui::SliderFloat("##touchScale", &touchScale, 0.5f, 1.5f, "%.1f")) { configfile_save(configfile_name()); }
+            ImGui::SetNextItemWidth(-1);
+            static float touchAlpha = 1.0f;
+            ImGui::Text("Opacity");
+            if (ImGui::SliderFloat("##touchAlpha", &touchAlpha, 0.3f, 1.0f, "%.1f")) { configfile_save(configfile_name()); }
+            ImGui::Text("1.0 = normal");
+            ImGui::Separator();
+            ImGui::Text("Edit Button Position");
+            extern int g_editButtonMode;
+            extern int g_snapGrid;
+            extern float g_gridSize;
+            extern int g_showCenter;
+            if (g_editButtonMode == 0) {
+                if (ImGui::Button("Edit Button Position")) { g_editButtonMode = 1; }
+            } else {
+                ImGui::Text("Mode Edit: drag tombol di layar");
+                if (ImGui::Button("Done")) { g_editButtonMode = 0; configfile_save(configfile_name()); }
+            }
+            ImGui::Text("Snap to Grid");
+            {
+                bool snapGrid = g_snapGrid != 0;
+                if (ImGui::Checkbox("Snap to Grid", &snapGrid)) { g_snapGrid = snapGrid ? 1 : 0; configfile_save(configfile_name()); }
+            }
+            ImGui::Text("Grid Size");
+            ImGui::SetNextItemWidth(-1);
+            {
+                float gridSize = g_gridSize;
+                if (ImGui::SliderFloat("##gridSize", &gridSize, 10.0f, 100.0f, "%.0f")) { g_gridSize = gridSize; configfile_save(configfile_name()); }
+            }
+            ImGui::Text("Show Center Lines");
+            {
+                bool showCenter = g_showCenter != 0;
+                if (ImGui::Checkbox("Show Center Lines", &showCenter)) { g_showCenter = showCenter ? 1 : 0; configfile_save(configfile_name()); }
+            }
+            if (ImGui::Button("Reset Position")) { remove("/sdcard/Android/data/com.vdavid003.sm64port/files/user/btn_pos.txt"); extern int hasCustom[]; for (int i = 0; i < 32; i++) hasCustom[i] = 0; g_snapGrid = 1; g_gridSize = 50.0f; g_showCenter = 1; configfile_save(configfile_name()); }
         } else if (g_tab == 3) {
             ImGui::Text("Hacks - sama kayak CHEATS bawaan game");
             ImGui::Separator();

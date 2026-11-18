@@ -15,6 +15,8 @@
 
 #include "controller_api.h"
 #include "controller_touchscreen.h"
+#include <stdlib.h>
+extern float configAnalogSens;
 
 #define SCREEN_WIDTH_API 1280
 #define SCREEN_HEIGHT_API 960
@@ -53,7 +55,15 @@ struct ControlElement {
 #include "controller_touchscreen_layouts.inc"
 
 static struct ControlElement *ControlElements = ControlElementsDefault;
+int g_editButtonMode = 0;
+int g_snapGrid = 1;
+float g_gridSize = 50.0f;
+int g_showCenter = 1;
+struct Position customPos[32];
+int hasCustom[32] = {0};
+static int snap_to_grid(int pos, int center, int grid) { if (!g_snapGrid || grid < 10) return pos; int off = pos - center; int snapped = center + (int)((off + grid/2) / grid) * grid; if (off < 0) snapped = center + (int)((off - grid/2) / grid) * grid; if (abs(pos - center) < grid/2) snapped = center; return snapped; }
 static int ControlElementsLength = sizeof(ControlElementsDefault)/sizeof(struct ControlElement);
+struct Position Touchscreen_GetPos(int i) { if (i < 0 || i >= ControlElementsLength) { struct Position z = {0, 0}; return z; } if (hasCustom[i]) return customPos[i]; return ControlElements[i].GetPos(); }
 
 #define TRIGGER_DETECT(size) (((pos.x + size / 2 > CORRECT_TOUCH_X(event->x)) && (pos.x - size / 2 < CORRECT_TOUCH_X(event->x))) &&\
                               ((pos.y + size / 2 > CORRECT_TOUCH_Y(event->y)) && (pos.y - size / 2 < CORRECT_TOUCH_Y(event->y))))
@@ -62,13 +72,12 @@ void touch_down(struct TouchEvent* event) {
     struct Position pos;
     for(int i = 0; i < ControlElementsLength; i++) {
         if (ControlElements[i].touchID == 0) {
-            pos = ControlElements[i].GetPos();
+            pos = hasCustom[i] ? customPos[i] : ControlElements[i].GetPos();
             switch (ControlElements[i].type) {
                 case Joystick:
                     if (TRIGGER_DETECT(JOYSTICK_SIZE)) {
                         ControlElements[i].touchID = event->touchID;
-                        ControlElements[i].joyX = CORRECT_TOUCH_X(event->x) - pos.x;
-                        ControlElements[i].joyY = CORRECT_TOUCH_Y(event->y) - pos.y;
+                        if (!g_editButtonMode) { ControlElements[i].joyX = CORRECT_TOUCH_X(event->x) - pos.x; ControlElements[i].joyY = CORRECT_TOUCH_Y(event->y) - pos.y; } // BLOCK: pas edit, jangan gerakin stick/kamera
                     }
                     break;
                 case Button:
@@ -84,9 +93,28 @@ void touch_down(struct TouchEvent* event) {
 void touch_motion(struct TouchEvent* event) {
     struct Position pos;
     for(int i = 0; i < ControlElementsLength; i++) {
-        pos = ControlElements[i].GetPos();
+        pos = hasCustom[i] ? customPos[i] : ControlElements[i].GetPos();
         if (ControlElements[i].touchID == event->touchID) {
-            pos = ControlElements[i].GetPos();
+                if (g_editButtonMode) {
+                    int nx = snap_to_grid(CORRECT_TOUCH_X(event->x), SCREEN_WIDTH_API / 2, (int)g_gridSize);
+                    int ny = snap_to_grid(CORRECT_TOUCH_Y(event->y), SCREEN_HEIGHT_API / 2, (int)g_gridSize);
+                    int overlap = 0;
+                    for (int j = 0; j < ControlElementsLength; j++) {
+                        if (j == i) continue;
+                        struct Position op = hasCustom[j] ? customPos[j] : ControlElements[j].GetPos();
+                        int dx = nx - op.x;
+                        int dy = ny - op.y;
+                        if (dx*dx + dy*dy < 60*60) { overlap = 1; break; }
+                    }
+                    if (overlap) continue;
+                    { FILE *dbg = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/debug_drag.txt", "a"); if (dbg) { fprintf(dbg, "DRAG i=%d nx=%d ny=%d edit=%d\n", i, nx, ny, g_editButtonMode); fclose(dbg); } }
+                    customPos[i].x = nx;
+                    { FILE *bf = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/btn_pos.txt", "w"); if (bf) { for (int k = 0; k < 13; k++) if (hasCustom[k]) fprintf(bf, "btn_pos_%d %d %d\n", k, customPos[k].x, customPos[k].y); fclose(bf); } }
+                    customPos[i].y = ny;
+                    hasCustom[i] = 1;
+                    continue;
+                }
+            pos = hasCustom[i] ? customPos[i] : ControlElements[i].GetPos();
                 switch (ControlElements[i].type) {
                     case Joystick:
                         ; //workaround
@@ -140,7 +168,7 @@ static void handle_touch_up(int i) {//seperated for when the layout changes
     }
 }
 
-void touch_up(struct TouchEvent* event) {
+void touch_up(struct TouchEvent* event) { { FILE *dbg = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/debug_drag.txt", "a"); if (dbg) { fprintf(dbg, "UP called edit=%d\n", g_editButtonMode); fclose(dbg); } } if (g_editButtonMode) { extern void configfile_save(const char *); extern const char *configfile_name(void); configfile_save(configfile_name()); }
     struct Position pos;
     for(int i = 0; i < ControlElementsLength; i++) {
         if (ControlElements[i].touchID == event->touchID) {
@@ -185,6 +213,35 @@ static void DrawSprite(s32 x, s32 y, int scaling) {
                         y + (15 << scaling), G_TX_RENDERTILE, 0, 0, 4 << (11 - scaling), 1 << (11 - scaling));
 }
 
+
+// SKIN DOANG - Shaolin Monks Rangga Casper, mode Xbox - V4 FINAL
+// V1 gagal: pake 'A'/'B' besar, padahal layout lu 'a'/'b' kecil + gak ada MODULATE
+// V4: mapping pake buttonID + zoomDir, combine dipaksa MODULATE biar warna nempel
+// Urutan: base -> overlay solid -> outline lagi -> huruf. Outline gak ketimpa.
+static void shaolin_skin_set_prim(int buttonID, int zoomDir, int pressed) {
+    if (!pressed) {
+        gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 255, 255);
+        return;
+    }
+    gDPSetCombineMode(gDisplayListHead++, G_CC_MODULATERGB, G_CC_MODULATERGB);
+    if (zoomDir == 1) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 82, 176, 66, 255); return; }
+    if (zoomDir == -1) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 232, 17, 35, 255); return; }
+    if (buttonID == A_BUTTON) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 82, 176, 66, 255); return; }
+    if (buttonID == B_BUTTON) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 232, 17, 35, 255); return; }
+    if (buttonID == START_BUTTON) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 255, 255); return; }
+    if (buttonID == Z_TRIG) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 180, 180, 180, 255); return; }
+    if (buttonID == R_TRIG) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 80, 80, 90, 255); return; }
+    if (buttonID == U_CBUTTONS) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 185, 0, 255); return; }
+    if (buttonID == D_CBUTTONS) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 0, 120, 215, 255); return; }
+    if (buttonID == L_CBUTTONS) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 0, 120, 215, 255); return; }
+    if (buttonID == R_CBUTTONS) { gDPSetPrimColor(gDisplayListHead++, 0, 0, 0, 120, 215, 255); return; }
+    gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 255, 255);
+}
+static void shaolin_skin_reset_combine(void) {
+    gDPSetCombineMode(gDisplayListHead++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+    gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 255, 255);
+}
+
 void render_touch_controls(void) {
     Mtx *mtx;
 
@@ -204,18 +261,28 @@ void render_touch_controls(void) {
         select_button_texture(0);
         switch (ControlElements[i].type) {
             case Joystick:
-                pos = ControlElements[i].GetPos();
+                pos = hasCustom[i] ? customPos[i] : ControlElements[i].GetPos();
                 DrawSprite(pos.x, pos.y, 3);
                 DrawSprite(pos.x + 4 + ControlElements[i].joyX, pos.y + 4 + ControlElements[i].joyY, 2);
                 break;
-            case Button:
-                if (ControlElements[i].touchID)
-                    select_button_texture(1);
-                pos = ControlElements[i].GetPos();
+            case Button: {
+                int pressed = ControlElements[i].touchID ? 1 : 0;
+                pos = hasCustom[i] ? customPos[i] : ControlElements[i].GetPos();
+                select_button_texture(0);
+                gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 255, 255);
                 DrawSprite(pos.x - 8, pos.y, 2);
+                if (pressed) {
+                    select_button_texture(1);
+                    shaolin_skin_set_prim(ControlElements[i].buttonID, ControlElements[i].zoomDir, 1);
+                    DrawSprite(pos.x - 8, pos.y, 2);
+                }
+                select_button_texture(0);
+                gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 255, 255);
                 select_char_texture(ControlElements[i].character);
                 DrawSprite(pos.x, pos.y, 1);
+                shaolin_skin_reset_combine();
                 break;
+            }
         }
     }
 
@@ -223,17 +290,19 @@ void render_touch_controls(void) {
 }
 
 static void touchscreen_init(void) {
+    { FILE *bf = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/btn_pos.txt", "r"); if (bf) { char line[128]; while (fgets(line, sizeof(line), bf)) { int idx, x, y; if (sscanf(line, "btn_pos_%d %d %d", &idx, &x, &y) == 3 && idx >= 0 && idx < 32) { customPos[idx].x = x; customPos[idx].y = y; hasCustom[idx] = 1; } } fclose(bf); } }
 }
 
 static void touchscreen_read(OSContPad *pad) {
-    extern int g_ZoomHold; // Z+ / Z- dari virtual control, bukan DPad game, bukan Z_TRIG game
+    extern int g_ZoomHold;
+    if (g_editButtonMode) { pad->button = 0; pad->stick_x = 0; pad->stick_y = 0; g_ZoomHold = 0; return; } // BLOCK ALL: tombol + stick + zoom + kamera, pas edit // Z+ / Z- dari virtual control, bukan DPad game, bukan Z_TRIG game
     int zoomHeld = 0; // 0 = gak ada Z+ / Z- virtual yang dipencet, 1 = Z+ dipencet, -1 = Z- dipencet
     for(int i = 0; i < ControlElementsLength; i++) {
         switch (ControlElements[i].type) {
             case Joystick:
                 if (ControlElements[i].joyX || ControlElements[i].joyY) {
-                    pad->stick_x = (ControlElements[i].joyX + JOYSTICK_SIZE/2) * 255 / JOYSTICK_SIZE - 128;
-                    pad->stick_y = (-ControlElements[i].joyY + JOYSTICK_SIZE/2) * 255 / JOYSTICK_SIZE - 128; //inverted for some reason
+                    pad->stick_x = (int)((ControlElements[i].joyX + JOYSTICK_SIZE/2) * 255 / JOYSTICK_SIZE - 128) * configAnalogSens; if (pad->stick_x > 127) pad->stick_x = 127; if (pad->stick_x < -128) pad->stick_x = -128;
+                    pad->stick_y = (int)((-ControlElements[i].joyY + JOYSTICK_SIZE/2) * 255 / JOYSTICK_SIZE - 128) * configAnalogSens; if (pad->stick_y > 127) pad->stick_y = 127; if (pad->stick_y < -128) pad->stick_y = -128; //inverted for some reason
                 }
                 break;
             case Button:

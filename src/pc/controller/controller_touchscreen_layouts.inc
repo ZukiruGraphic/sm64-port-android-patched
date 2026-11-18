@@ -68,11 +68,11 @@ static struct ControlElement ControlElementsDefault[] = {
 {.type = Button, .GetPos = GetDefaultAPos, .character = 'a', .buttonID = A_BUTTON},
 {.type = Button, .GetPos = GetDefaultBPos, .character = 'b', .buttonID = B_BUTTON},
 {.type = Button, .GetPos = GetDefaultZPos, .character = 't', .buttonID = Z_TRIG},
-{.type = Button, .GetPos = GetDefaultRPos, .character = 'r', .buttonID = R_TRIG},
-{.type = Button, .GetPos = GetDefaultUpPos, .character = 'u', .buttonID = U_CBUTTONS},
-{.type = Button, .GetPos = GetDefaultDownPos, .character = 'd', .buttonID = D_CBUTTONS},
-{.type = Button, .GetPos = GetDefaultLeftPos, .character = 'l', .buttonID = L_CBUTTONS},
-{.type = Button, .GetPos = GetDefaultRightPos, .character = 'r', .buttonID = R_CBUTTONS},
+// {.type = Button, .GetPos = GetDefaultRPos, .character = 'r', .buttonID = R_TRIG}, // HIDE R_TRIG, gak kepake pas main
+// {.type = Button, .GetPos = GetDefaultUpPos, .character = 'u', .buttonID = U_CBUTTONS}, // HIDE C-BUTTON, gak kepake pas main
+// {.type = Button, .GetPos = GetDefaultDownPos, .character = 'd', .buttonID = D_CBUTTONS}, // HIDE C-BUTTON, gak kepake pas main
+// {.type = Button, .GetPos = GetDefaultLeftPos, .character = 'l', .buttonID = L_CBUTTONS}, // HIDE C-BUTTON, gak kepake pas main
+// {.type = Button, .GetPos = GetDefaultRightPos, .character = 'r', .buttonID = R_CBUTTONS}, // HIDE C-BUTTON, gak kepake pas main
 // Z+ / Z- baru, buttonID = 0 (gak ke game), zoomDir = 1 / -1 (cuma set g_ZoomHold)
 {.type = Button, .GetPos = GetDefaultZoomInPos, .character = 'p', .buttonID = 0, .zoomDir = 1},
 {.type = Button, .GetPos = GetDefaultZoomOutPos, .character = 'm', .buttonID = 0, .zoomDir = -1}
