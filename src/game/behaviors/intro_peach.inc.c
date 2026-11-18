@@ -19,6 +19,8 @@ void intro_peach_set_pos_and_opacity(struct Object *o, f32 targetOpacity, f32 in
 }
 
 void bhv_intro_peach_loop(void) {
+    extern int gSkipIntroCutscene;
+    if (gSkipIntroCutscene) { obj_mark_for_deletion(gCurrentObject); return; } // SKIP: Peach langsung hilang, gak usah fade!
     switch (gCurrentObject->oAction) {
         case 0:
             gCurrentObject->oAction += 1;

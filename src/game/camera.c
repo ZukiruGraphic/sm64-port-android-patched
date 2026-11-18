@@ -3024,14 +3024,42 @@ void update_lakitu(struct Camera *c) {
  * The main camera update function.
  * Gets controller input, checks for cutscenes, handles mode changes, and moves the camera
  */
+static int g_customNeedResync = 0;
+static int g_sCustomYaw = 0;
+static int g_sCustomPitch = 0;
+static int g_sCustomInit = 0; // Dipindah ke file-scope biar bisa di-track pas cutscene GEDE!
+// 2 MODE: VANILLA (semua scene yang ke-trigger) vs CUSTOM (gameplay murni)!
+static int sCamModeVanilla = 0; // 1 = vanilla, 0 = custom
+static float sSavedCustomZoom = -1.0f; // -1 = belum pernah ke-simpen! Jangan hardcode 800, biar ngikut configZoom dari Settings!
+static int sSavedCustomYaw = 0;
+static int sSavedCustomPitch = 0;
+// Cuma cutscene GEDE yang di-blok! Scene KECIL (dialog / pintu / painting) GAK di-blok, biar offset gak nyangkut!
+static int is_dialog_cutscene(s32 cutscene) {
+    return (cutscene == CUTSCENE_DIALOG || cutscene == CUTSCENE_RACE_DIALOG || cutscene == CUTSCENE_READ_MESSAGE);
+}
+static int is_big_cutscene(s32 cutscene) {
+    switch (cutscene) {
+        case CUTSCENE_INTRO_PEACH:
+        case CUTSCENE_ENDING:
+        case CUTSCENE_STAR_SPAWN:
+        case CUTSCENE_GRAND_STAR:
+        case CUTSCENE_DANCE_ROTATE:
+        case CUTSCENE_DANCE_FLY_AWAY:
+        case CUTSCENE_DANCE_CLOSEUP:
+        case CUTSCENE_KEY_DANCE:
+        case CUTSCENE_ENTER_BOWSER_ARENA:
+        case CUTSCENE_EXIT_BOWSER_SUCC:
+        case CUTSCENE_EXIT_SPECIAL_SUCC:
+        // Dialog di-handle sendiri di bawah, BUKAN di sini, biar offset gak ke-resync!
+        default: return 0;
+    }
+}
 void update_camera(struct Camera *c) {
-    // Free Cam anti-cutscene: kalo lagi drag, cutscene di-cancel biar gak ke-lock!
+    // BLOK custom pas cutscene: drag dibuang, cutscene JANGAN di-cancel, kamera biarin cutscene yang pegang!
     {
         extern float g_camDragYaw;
         extern float g_camDragPitch;
-        static int sFreeCamTimer = 0;
-        if (g_camDragYaw != 0 || g_camDragPitch != 0) sFreeCamTimer = 60;
-        if (sFreeCamTimer > 0) { sFreeCamTimer--; c->cutscene = 0; c->mode = CAMERA_MODE_FREE_ROAM; }
+        if (c->cutscene != 0) { g_camDragYaw = 0; g_camDragPitch = 0; } // SEMUA SCENE diblok drag-nya!
     }
     // Drag + Zoom dipindah ke AKHIR update_camera (sesudah update_lakitu), biar gak ketimpa!
     UNUSED u8 unused[24];
@@ -3251,8 +3279,66 @@ void update_camera(struct Camera *c) {
 
     update_lakitu(c);
 
-    // Drag + Zoom FINAL - sesudah update_lakitu, ubah c->pos + gLakituState barengan biar gak balik!
-    {
+    // GEDE: BLOK drag + TRACK offset ngikutin cutscene. DIALOG: JANGAN BLOK, JANGAN TRACK, BISA DRAG!
+    // PENDING: cutscene gede baru mau mulai - cameraEvent udah START_* tapi c->cutscene masih 0 di frame ini!
+    u8 _pending = get_cutscene_from_mario_status(c);
+    if (c->cutscene != 0 || _pending != 0) {
+        // MODE VANILLA - SEMUA SCENE YANG KE-TRIGGER! Intro, Star, Ending, Dance, Dialog, Pintu, Painting, Warp, Pipa, Kematian -> SEMUA VANILLA!
+        // Baru masuk VANILLA -> JANGAN simpen dari g_LakituZoomDist di sini! g_LakituZoomDist udah ke-ubah vanilla (update_lakitu jalan duluan)!
+        // Zoom custom udah di-simpen TIAP FRAME pas CUSTOM di bawah (sSavedCustomZoom = g_LakituZoomDist), jadi di sini cuma tandain masuk VANILLA!
+        if (sCamModeVanilla == 0) {
+            sSavedCustomYaw = g_sCustomYaw;
+            sSavedCustomPitch = g_sCustomPitch;
+            sCamModeVanilla = 1;
+        }
+        extern float g_camDragYaw;
+        extern float g_camDragPitch;
+        g_camDragYaw = 0; g_camDragPitch = 0; // BLOK TOTAL drag pas VANILLA!
+        // VANILLA PENUH! Jangan TRACK, jangan update_lakitu lagi, jangan sentuh gLakituState sama sekali!
+        // Cutscene gede biar game yang pegang penuh (Lakitu -> Peach). Custom di-off-in total!
+        // g_sCustomInit = 0 biar pas di-SKIP / cutscene selesai, custom ngambil dari belakang Mario (faceAngle), bukan dari posisi Peach!
+        // VANILLA: JANGAN sentuh gLakituState, JANGAN SNAP, JANGAN TRACK! Biar spline game (Peach -> pipa) jalan sendiri!
+        // g_sCustomInit JANGAN di-reset ke 0 di sini, soalnya yaw/pitch udah di-simpan di sSaved* di atas!
+        // BLOK TOTAL: drag + zoom hold juga dibuang, biar gak nyangkut pas skip!
+        extern int g_ZoomHold; g_ZoomHold = 0;
+        // JANGAN SNAP! SNAP motong spline Intro (Peach -> pipa), kamera langsung loncat, muka Peach ke-skip!
+        // Big scene biar jalanin spline-nya sendiri (smooth), custom OFF total, gak usah di-snap!
+    } else {
+        // MODE CUSTOM! c->cutscene == 0 + _pending == 0 = GAK ADA SCENE, GAMEPLAY MURNI!
+        // Baru keluar dari VANILLA (scene selesai / di-skip) -> BALIKIN zoom/yaw/pitch custom terakhir!
+        if (sCamModeVanilla == 1) {
+            // Balik dari VANILLA -> Balikin zoom dari sSaved (zoom custom terakhir SEBELUM vanilla, bukan jarak vanilla)!
+            // Kalo sSaved masih 0 / belum pernah ke-simpen, pake configZoom (dari sm64config.txt -> zoom = xxx di Settings)!
+            extern float configZoom;
+            // Kalo sSaved masih -1 / ngaco, JANGAN timpa configZoom dengan 800! Pake configZoom (Settings) sebagai sumber!
+            if (sSavedCustomZoom < 200.0f || sSavedCustomZoom > 2000.0f) {
+                sSavedCustomZoom = configZoom;
+                // Kalo configZoom juga ngaco, baru pake g_LakituZoomDist yang masih ada!
+                if (sSavedCustomZoom < 200.0f || sSavedCustomZoom > 2000.0f) sSavedCustomZoom = g_LakituZoomDist;
+            }
+            g_LakituZoomDist = sSavedCustomZoom;
+            gCameraZoomDist = sSavedCustomZoom; // Vanilla ngubah gCameraZoomDist juga, balikin juga!
+            // JANGAN timpa configZoom di sini! configZoom itu punya Settings! Biar Settings gak ke-reset ke 800!
+            // configZoom cuma di-update pas user geser slider / save di pc_main.c, bukan pas balik dari cutscene!
+            g_sCustomYaw = sSavedCustomYaw;
+            g_sCustomPitch = sSavedCustomPitch;
+            g_sCustomInit = 1; // Udah ada yaw/pitch simpanan, jangan init ulang dari belakang Mario!
+            sCamModeVanilla = 0;
+        }
+        // CUSTOM: kalo sSaved masih -1 (baru pertama kali masuk game), ambil dari configZoom (Settings / sm64config.txt), JANGAN dari 800!
+        if (sSavedCustomZoom < 0.0f) {
+            extern float configZoom;
+            sSavedCustomZoom = configZoom;
+            // Kalo configZoom juga masih 800 default tapi g_LakituZoomDist udah bener (misal dari slider), pake g_LakituZoomDist!
+            if (sSavedCustomZoom < 200.0f || sSavedCustomZoom > 2000.0f) sSavedCustomZoom = g_LakituZoomDist;
+            // Langsung terapin zoom dari Settings ke Lakitu, biar gak ke-reset ke 800 pas masuk game!
+            g_LakituZoomDist = sSavedCustomZoom;
+            gCameraZoomDist = sSavedCustomZoom;
+        }
+        // CUSTOM: simpen zoom custom TIAP FRAME, biar pas masuk VANILLA berikutnya, sSaved-nya udah zoom custom terakhir, bukan jarak vanilla!
+        sSavedCustomZoom = g_LakituZoomDist;
+        // CUSTOM cuma pas GAMEPLAY MURNI! Dialog sekarang ikut VANILLA, fokus ngikut bawaan game!
+        { // Custom jalan (termasuk pas dialog - bisa drag!)
         extern float g_camDragYaw;
         extern float g_camDragPitch;
         static f32 sStoredDist_Z2 = 800.0f;
@@ -3263,36 +3349,36 @@ void update_camera(struct Camera *c) {
         // Terapin drag + zoom - offset PERSISTEN, di-apply tiap frame biar atas-bawah gak balik!
         {
             // Yaw/Pitch ABSOLUT custom - disimpen sendiri, gak ngikutin yaw bawaan (hadep Mario)!
-            static int sCustomYaw = 0; // int biar gak overflow s16!
-            static int sCustomPitch = 0; // int biar muat 50k!
-            static int sCustomInit = 0;
-            if (g_camDragYaw != 0) { sCustomYaw += (int)(g_camDragYaw * 3.0f); g_camDragYaw = 0; } // *0.01, biar gak langsung mentok!
-            if (g_camDragPitch != 0) { sCustomPitch += (int)(g_camDragPitch * 3.0f); g_camDragPitch = 0; } // *0.01, dari 0.1f kegedean 10x!
-            if (sCustomPitch > 12000) sCustomPitch = 12000; // 66 derajat, aman, gak invert! // 30k, aman s16, biar gak invert pas mentok!
-            if (sCustomPitch < -12000) sCustomPitch = -12000;
+            // Pake globals g_sCustom* langsung (udah di-track pas cutscene GEDE, jadi gak lompat!)
+            g_customNeedResync = 0;
+            if (g_camDragYaw != 0) { g_sCustomYaw += (int)(g_camDragYaw * 3.0f); g_camDragYaw = 0; } // *0.01, biar gak langsung mentok!
+            if (g_camDragPitch != 0) { g_sCustomPitch += (int)(g_camDragPitch * 3.0f); g_camDragPitch = 0; } // *0.01, dari 0.1f kegedean 10x!
+            if (g_sCustomPitch > 12000) g_sCustomPitch = 12000; // 66 derajat, aman, gak invert! // 30k, aman s16, biar gak invert pas mentok!
+            if (g_sCustomPitch < -12000) g_sCustomPitch = -12000;
             // Fokus = Mario (tengah), tapi yaw/pitch = CUSTOM ABSOLUT, bukan hadep Mario!
             vec3f_copy(c->focus, sMarioCamState->pos);
             c->focus[1] += 125.0f;
             vec3f_copy(gLakituState.focus, c->focus);
-            vec3f_copy(gLakituState.goalFocus, c->focus);
+            vec3f_copy(gLakituState.goalFocus, c->focus); // BALIKIN! Biar custom nempel, dialog gak balik ke vanilla!
             f32 dist; s16 pitch, yaw;
             vec3f_get_dist_and_angle(c->focus, c->pos, &dist, &pitch, &yaw);
-            // Init pertama kali dari yaw bawaan, abis itu gak pernah ngikutin hadep Mario lagi!
-            if (sCustomInit == 0) { sCustomYaw = yaw; sCustomPitch = pitch; sCustomInit = 1; }
-            yaw = sCustomYaw;
-            pitch = sCustomPitch;
+            // Init: abis SKIP / abis cutscene gede, g_sCustomInit == 0. JANGAN pake yaw dari c->pos (itu posisi Peach)! Pake belakang Mario!
+            if (g_sCustomInit == 0) { g_sCustomYaw = (s16)(sMarioCamState->faceAngle[1] + 0x8000); g_sCustomPitch = 0x2000; g_sCustomInit = 1; } // Abis SKIP: belakang Mario, bukan muka Peach!
+            yaw = g_sCustomYaw;
+            pitch = g_sCustomPitch;
             dist = gCameraZoomDist;
             vec3f_set_dist_and_angle(c->focus, c->pos, dist, pitch, yaw);
             vec3f_copy(gLakituState.pos, c->pos);
             vec3f_copy(gLakituState.goalPos, c->pos);
             vec3f_copy(gLakituState.focus, c->focus);
-            vec3f_copy(gLakituState.goalFocus, c->focus);
+            vec3f_copy(gLakituState.goalFocus, c->focus); // BALIKIN! Biar custom nempel tiap frame, kamera bisa dikontrol + zoom jalan!
             c->yaw = yaw;
             c->nextYaw = yaw;
             gLakituState.yaw = yaw;
-            gLakituState.nextYaw = yaw;
+            gLakituState.nextYaw = yaw; // BALIKIN!
         }
-    }
+        } // tutup custom
+    } // tutup else (DIALOG / gameplay)
 
     gLakituState.lastFrameAction = sMarioCamState->action;
 }

@@ -59,6 +59,20 @@ s32 intro_lakitu_set_pos_and_focus(struct Object *o, struct CutsceneSplinePoint 
 
 void bhv_intro_lakitu_loop(void) {
     Vec3f sp64, sp58, sp4C;
+    extern int gSkipIntroCutscene;
+    if (gSkipIntroCutscene && (gCurrentObject->oAction == 1 || gCurrentObject->oAction == 2)) {
+        // SKIP: Lakitu langsung PERGI (case 3, bawaan game pergi + hilang di luar kamera, bukan fade)!
+        // Copy setup dari case 2 -> case 3 (gCutsceneTimer > 720)!
+        gCurrentObject->oAction = 3;
+        gCurrentObject->oIntroLakituUnk100 = 1400.f;
+        gCurrentObject->oIntroLakituUnk104 = -4096.f;
+        gCurrentObject->oIntroLakituUnk108 = 2048.f;
+        gCurrentObject->oIntroLakituUnk10C = -200.f;
+        gCurrentObject->oMoveAngleYaw = 0x8000;
+        gCurrentObject->oFaceAngleYaw = gCurrentObject->oMoveAngleYaw + 0x4000;
+        gCurrentObject->oMoveAnglePitch = 0x800;
+        gCurrentObject->oTimer = 0; // Mulai dari 0, biar terbang pergi 98 frame terus delete + cloud delete!
+    }
     UNUSED u32 pad[4];
 
     switch (gCurrentObject->oAction) {

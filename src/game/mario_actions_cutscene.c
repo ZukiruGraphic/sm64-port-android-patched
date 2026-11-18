@@ -2628,18 +2628,35 @@ static s32 check_for_instant_quicksand(struct MarioState *m) {
     return FALSE;
 }
 
+int gSkipIntroCutscene = 0; // 1 = Intro di-skip! Peach langsung delete, Lakitu langsung pergi (case 3)!
 s32 mario_execute_cutscene_action(struct MarioState *m) {
     // SKIP CUTSCENE pake START (tombol S di touchscreen)!
     // Cutscene SM64 realtime, jadi bisa di-skip: START -> langsung ACT_IDLE + kamera balik normal + dialog ilang!
     // Jangan skip yang kematian / pintu / warp / muncul dari pipa (biar gak softlock)!
-    if ((gPlayer1Controller->buttonPressed & START_BUTTON) && m->action != ACT_STANDING_DEATH && m->action != ACT_QUICKSAND_DEATH && m->action != ACT_ELECTROCUTION && m->action != ACT_SUFFOCATION && m->action != ACT_DEATH_ON_STOMACH && m->action != ACT_DEATH_ON_BACK && m->action != ACT_EATEN_BY_BUBBA && m->action != ACT_PULLING_DOOR && m->action != ACT_PUSHING_DOOR && m->action != ACT_WARP_DOOR_SPAWN && m->action != ACT_EMERGE_FROM_PIPE && m->action != ACT_SPAWN_SPIN_AIRBORNE && m->action != ACT_SPAWN_SPIN_LANDING && m->action != ACT_EXIT_AIRBORNE && m->action != ACT_DEATH_EXIT && m->action != ACT_FALLING_DEATH_EXIT && m->action != ACT_SPECIAL_EXIT_AIRBORNE && m->action != ACT_SPECIAL_DEATH_EXIT && m->action != ACT_FALLING_EXIT_AIRBORNE && m->action != ACT_SPAWN_NO_SPIN_AIRBORNE && m->action != ACT_SPAWN_NO_SPIN_LANDING) {
-        // Tutup dialog kalo lagi dialog (Peach / Toad / tanda)!
-        if (get_dialog_id() >= 0) { reset_dialog_render_state(); } // Tutup dialog!
+    if ((gPlayer1Controller->buttonPressed & START_BUTTON) && m->action != ACT_STANDING_DEATH && m->action != ACT_QUICKSAND_DEATH && m->action != ACT_ELECTROCUTION && m->action != ACT_SUFFOCATION && m->action != ACT_DEATH_ON_STOMACH && m->action != ACT_DEATH_ON_BACK && m->action != ACT_EATEN_BY_BUBBA && m->action != ACT_PULLING_DOOR && m->action != ACT_PUSHING_DOOR && m->action != ACT_WARP_DOOR_SPAWN && m->action != ACT_EMERGE_FROM_PIPE && m->action != ACT_SPAWN_SPIN_AIRBORNE && m->action != ACT_SPAWN_SPIN_LANDING && m->action != ACT_EXIT_AIRBORNE && m->action != ACT_DEATH_EXIT && m->action != ACT_FALLING_DEATH_EXIT && m->action != ACT_SPECIAL_EXIT_AIRBORNE && m->action != ACT_SPECIAL_DEATH_EXIT && m->action != ACT_FALLING_EXIT_AIRBORNE && m->action != ACT_SPAWN_NO_SPIN_AIRBORNE && m->action != ACT_SPAWN_NO_SPIN_LANDING && m->action != ACT_READING_NPC_DIALOG && m->action != ACT_READING_AUTOMATIC_DIALOG && m->action != ACT_WAITING_FOR_DIALOG && m->action != ACT_READING_SIGN) { // Dialog Lakitu / Toad / Sign JANGAN di-skip START, biar Lakitu bisa pergi + dialog muncul!
+        // SKIP = BERSIHIN SEMUA! Surat + Peach + Timeout! Jangan takut ke-STOP, soalnya kita langsung set ACT_IDLE + cutscene=0 di bawah!
+        // Dulu JANGAN reset dialog pas Intro (biar surat bisa muncul), tapi pas di-SKIP harus di-reset, biar surat gak nempel di gameplay!
+        if (get_dialog_id() >= 0) { reset_dialog_render_state(); }
+        // Tutup dialog + matiin timeout dialog (biar surat gak nempel + timeout-nya ke-skip juga)!
+        extern s8 gDialogBoxState; gDialogBoxState = 0; // DIALOG_STATE_CLOSED = 0
+        // Delete Peach (cutscene_spawn_obj(5,0) di Intro)! Peach disimpen di gCutsceneFocus pas Intro!
+        extern struct Object *gCutsceneFocus;
+        if (gCutsceneFocus) { obj_mark_for_deletion(gCutsceneFocus); gCutsceneFocus = NULL; }
         // SKIP TOTAL: HUD balik, Mario gfx muncul lagi, cameraEvent 0, pipa intro dihapus!
         gHudDisplay.flags = HUD_DISPLAY_DEFAULT;
         if (m->marioObj) m->marioObj->header.gfx.node.flags |= GRAPH_RENDER_ACTIVE;
         if (m->statusForCamera) m->statusForCamera->cameraEvent = 0;
         if (gCamera) gCamera->cutscene = 0;
+        // SKIP KARAKTER JUGA! Peach langsung delete, Lakitu langsung pergi (case 3, hilang di luar kamera, bukan fade)!
+        gSkipIntroCutscene = 1;
+        extern u32 gCutsceneObjSpawn; gCutsceneObjSpawn = 0; // Jangan spawn Peach/Lakitu lagi abis skip!
+        // SKIP TIMER + TIMEOUT JUGA! Kalo gak, gCutsceneTimer masih nyangkut di Intro -> surat / dialog Lakitu gak bisa jalan, freeze!
+        // CUTSCENE_STOP = -1 (stop total), bukan 0 (masih jalan)!
+        extern s16 gCutsceneTimer; gCutsceneTimer = CUTSCENE_STOP;
+        extern u8 gRecentCutscene; gRecentCutscene = 0;
+        // Timeout dialog udah ke-stop lewat reset_dialog_render_state() + gCutsceneTimer = CUTSCENE_STOP di atas! Jangan pake gDialogBoxTimeout, variabel itu gak ada!
+        // Reset action timer biar Lakitu tutorial bisa trigger dari awal, gak nyangkut di step Intro!
+        m->actionState = 0; m->actionTimer = 0; m->actionArg = 0;
         // Intro doang: pipa dihapus + Mario ditaruh di depan pipa (biar gak ilang / ke-teleport balik ke scene)!
         if (m->action == ACT_INTRO_CUTSCENE) {
             if (sIntroWarpPipeObj) { obj_mark_for_deletion(sIntroWarpPipeObj); sIntroWarpPipeObj = NULL; }
