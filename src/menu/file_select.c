@@ -2848,3 +2848,18 @@ s32 lvl_update_obj_and_load_file_selected(UNUSED s32 arg, UNUSED s32 unused) {
     area_update_objects();
     return sSelectedFileNum;
 }
+
+// Savestate dihapus.
+void file_select_get_menu_state(s8 *selectedButtonID, s8 *menuLevel) {
+    if (selectedButtonID) *selectedButtonID = sSelectedButtonID;
+    if (menuLevel) *menuLevel = sCurrentMenuLevel;
+}
+void file_select_set_menu_state(s8 selectedButtonID, s8 menuLevel) {
+    sSelectedButtonID = selectedButtonID;
+    sCurrentMenuLevel = menuLevel;
+    sMainMenuTimer = 0; sTextBaseAlpha = 0; sTextFadeAlpha = 0; sFadeOutText = FALSE;
+    // Reset cursor biar gak nyangkut di submenu lama!
+    if (selectedButtonID == MENU_BUTTON_NONE && menuLevel == MENU_LAYER_MAIN) {
+        sCursorPos[0] = -94.0f; sCursorPos[1] = 46.0f;
+    }
+}

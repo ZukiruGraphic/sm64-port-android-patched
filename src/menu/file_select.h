@@ -138,3 +138,7 @@ s32 lvl_init_menu_values_and_cursor_pos(UNUSED s32 arg, UNUSED s32 unused);
 s32 lvl_update_obj_and_load_file_selected(UNUSED s32 arg, UNUSED s32 unused);
 
 #endif // FILE_SELECT_H
+
+// Savestate dihapus.
+void file_select_get_menu_state(s8 *selectedButtonID, s8 *menuLevel);
+void file_select_set_menu_state(s8 selectedButtonID, s8 menuLevel);

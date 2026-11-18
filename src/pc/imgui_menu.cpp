@@ -5,7 +5,7 @@
 extern "C" {
 #include "pc/configfile.h"
 #include "pc/cheats.h"
-#include "pc/savestate.h"
+// HAPUS SAVESTATE: include dihapus
 }
 
 static bool g_imgui_visible = false;
@@ -112,7 +112,7 @@ void imgui_menu_toggle() { g_imgui_visible = !g_imgui_visible; }
 bool imgui_menu_is_visible() { return g_imgui_visible; }
 
 void imgui_menu_frame() {
-    savestate_tick();
+    // HAPUS SAVESTATE: savestate_tick dihapus
     if (sToastTimer > 0) sToastTimer -= 1.0f/60.0f;
     g_imgui_fullscreen = configWindow.fullscreen;
     ImGui_ImplOpenGL3_NewFrame();
@@ -123,33 +123,14 @@ void imgui_menu_frame() {
         ImGui::SetNextWindowSize(ImVec2(900, 550), ImGuiCond_FirstUseEver);
         ImGui::Begin("SM64 Menu", &g_imgui_visible);
         ImGui::BeginChild("##sidebar", ImVec2(220, 0), true);
-        const char *tabs[] = { "Savestate", "Graphic", "Audio", "Control", "Hacks", "System", "Debug" };
-        for (int i = 0; i < 7; i++) {
+        const char *tabs[] = { "Graphic", "Audio", "Control", "Hacks", "System", "Debug" };
+        for (int i = 0; i < 6; i++) {
             if (ImGui::Selectable(tabs[i], g_tab == i)) g_tab = i;
         }
         ImGui::EndChild();
         ImGui::SameLine();
         ImGui::BeginChild("##content", ImVec2(0, 0), false);
         if (g_tab == 0) {
-            ImGui::Text("Savestate - 5 slot");
-            ImGui::Separator();
-            for (int s = 0; s < SAVESTATE_SLOTS; s++) {
-                char lbl[64]; snprintf(lbl, 64, "Slot %d", s+1);
-                ImGui::Text("%s", lbl);
-                ImGui::SameLine();
-                char sb[32]; snprintf(sb, 32, "SAVE##%d", s);
-                if (ImGui::Button(sb)) { savestate_save_slot(s); snprintf(sToast, 64, "State Saved!"); sToastTimer = 2.0f; }
-                ImGui::SameLine();
-                char lb[32]; snprintf(lb, 32, "LOAD##%d", s);
-                if (gSavestateSlots[s].used) {
-                    if (ImGui::Button(lb)) { savestate_load_slot(s); snprintf(sToast, 64, "State Loaded!"); sToastTimer = 2.0f; }
-                    ImGui::SameLine();
-                    ImGui::Text("%s | Lv %d | * %d", gSavestateSlots[s].timeStr, gSavestateSlots[s].levelNum, gSavestateSlots[s].starCount);
-                } else {
-                    ImGui::Text("Empty");
-                }
-            }
-        } else if (g_tab == 1) {
             ImGui::Text("Graphic - sama kayak DISPLAY bawaan game");
             ImGui::Separator();
             if (ImGui::Checkbox("Fullscreen", &configWindow.fullscreen)) { configWindow.settings_changed = true; configfile_save(configfile_name()); } // Auto-save, gak pake Apply!
@@ -171,7 +152,7 @@ void imgui_menu_frame() {
             if (ImGui::Checkbox("HUD", &configHUD)) { configfile_save(configfile_name()); } // Auto-save!
             ImGui::Spacing();
             ImGui::Text("Auto-save: Graphic langsung ke-save, gak pake Apply!");
-        } else if (g_tab == 2) {
+        } else if (g_tab == 1) {
             ImGui::Text("Audio - sama kayak AUDIO bawaan game");
             ImGui::Separator();
             int tmpMaster = (int)configMasterVolume;
@@ -190,7 +171,7 @@ void imgui_menu_frame() {
             ImGui::Text("Env Volume");
             ImGui::SetNextItemWidth(-1);
             if (ImGui::SliderInt("##env", &tmpEnv, 0, 128)) { configEnvVolume = (unsigned int)tmpEnv; configfile_save(configfile_name()); }
-        } else if (g_tab == 3) {
+        } else if (g_tab == 2) {
             ImGui::Text("Control - Camera Sensitivity");
             ImGui::Separator();
             ImGui::Text("Horizontal Sensitivity");
@@ -200,7 +181,7 @@ void imgui_menu_frame() {
             ImGui::SetNextItemWidth(-1);
             if (ImGui::SliderFloat("##sensV", &configSensV, 0.1f, 5.0f, "%.1f")) { configfile_save(configfile_name()); } // Auto-save!
             ImGui::Text("Default 1.0 = 18000 / 9000, Max 5.0");
-        } else if (g_tab == 4) {
+        } else if (g_tab == 3) {
             ImGui::Text("Hacks - sama kayak CHEATS bawaan game");
             ImGui::Separator();
             ImGui::Checkbox("Enable Cheats", &Cheats.EnableCheats);
@@ -212,13 +193,13 @@ void imgui_menu_frame() {
             ImGui::Checkbox("Exit Anywhere", &Cheats.ExitAnywhere);
             ImGui::Checkbox("Huge Mario", &Cheats.HugeMario);
             ImGui::Checkbox("Tiny Mario", &Cheats.TinyMario);
-        } else if (g_tab == 5) {
+        } else if (g_tab == 4) {
             ImGui::Text("System");
             ImGui::Separator();
             ImGui::Text("SM64 Port Android + ImGui");
             ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
             if (ImGui::Button("Close Menu")) g_imgui_visible = false;
-        } else if (g_tab == 6) {
+        } else if (g_tab == 5) {
             ImGui::Text("Debug");
             ImGui::Separator();
             ImGui::Text("Demo window taro sini");
