@@ -2629,6 +2629,29 @@ static s32 check_for_instant_quicksand(struct MarioState *m) {
 }
 
 s32 mario_execute_cutscene_action(struct MarioState *m) {
+    // SKIP CUTSCENE pake START (tombol S di touchscreen)!
+    // Cutscene SM64 realtime, jadi bisa di-skip: START -> langsung ACT_IDLE + kamera balik normal + dialog ilang!
+    // Jangan skip yang kematian / pintu / warp / muncul dari pipa (biar gak softlock)!
+    if ((gPlayer1Controller->buttonPressed & START_BUTTON) && m->action != ACT_STANDING_DEATH && m->action != ACT_QUICKSAND_DEATH && m->action != ACT_ELECTROCUTION && m->action != ACT_SUFFOCATION && m->action != ACT_DEATH_ON_STOMACH && m->action != ACT_DEATH_ON_BACK && m->action != ACT_EATEN_BY_BUBBA && m->action != ACT_PULLING_DOOR && m->action != ACT_PUSHING_DOOR && m->action != ACT_WARP_DOOR_SPAWN && m->action != ACT_EMERGE_FROM_PIPE && m->action != ACT_SPAWN_SPIN_AIRBORNE && m->action != ACT_SPAWN_SPIN_LANDING && m->action != ACT_EXIT_AIRBORNE && m->action != ACT_DEATH_EXIT && m->action != ACT_FALLING_DEATH_EXIT && m->action != ACT_SPECIAL_EXIT_AIRBORNE && m->action != ACT_SPECIAL_DEATH_EXIT && m->action != ACT_FALLING_EXIT_AIRBORNE && m->action != ACT_SPAWN_NO_SPIN_AIRBORNE && m->action != ACT_SPAWN_NO_SPIN_LANDING) {
+        // Tutup dialog kalo lagi dialog (Peach / Toad / tanda)!
+        if (get_dialog_id() >= 0) { reset_dialog_render_state(); } // Tutup dialog!
+        // SKIP TOTAL: HUD balik, Mario gfx muncul lagi, cameraEvent 0, pipa intro dihapus!
+        gHudDisplay.flags = HUD_DISPLAY_DEFAULT;
+        if (m->marioObj) m->marioObj->header.gfx.node.flags |= GRAPH_RENDER_ACTIVE;
+        if (m->statusForCamera) m->statusForCamera->cameraEvent = 0;
+        if (gCamera) gCamera->cutscene = 0;
+        // Intro doang: pipa dihapus + Mario ditaruh di depan pipa (biar gak ilang / ke-teleport balik ke scene)!
+        if (m->action == ACT_INTRO_CUTSCENE) {
+            if (sIntroWarpPipeObj) { obj_mark_for_deletion(sIntroWarpPipeObj); sIntroWarpPipeObj = NULL; }
+            // Pos akhir intro: di depan pipa (-1328, 4664), Y biarin jatuh ke tanah via IDLE!
+            m->pos[0] = -1328.0f; m->pos[2] = 4664.0f; m->pos[1] = 300.0f;
+            m->vel[0] = 0; m->vel[1] = 0; m->vel[2] = 0;
+            m->faceAngle[1] = 0;
+        }
+        if (m->pos[1] <= m->waterLevel - 100) { set_mario_action(m, ACT_WATER_IDLE, 0); }
+        else { set_mario_action(m, ACT_IDLE, 0); }
+        return TRUE;
+    }
     s32 cancel;
 
     if (check_for_instant_quicksand(m)) {

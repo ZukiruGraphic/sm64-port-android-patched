@@ -6,7 +6,7 @@
 #define CONFIGFILE_DEFAULT "sm64config.txt"
 
 #define MAX_BINDS  3
-#define MAX_VOLUME 127
+#define MAX_VOLUME 128 // Default 128, max slider 128, biar 100% pas!
 
 typedef struct {
     unsigned int x, y, w, h;

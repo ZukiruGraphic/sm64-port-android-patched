@@ -93,10 +93,10 @@ void send_display_list(struct SPTask *spTask) {
 void produce_one_frame(void) {
     gfx_start_frame();
 
-    const f32 master_mod = (f32)configMasterVolume / 127.0f;
-    set_sequence_player_volume(SEQ_PLAYER_LEVEL, (f32)configMusicVolume / 127.0f * master_mod);
-    set_sequence_player_volume(SEQ_PLAYER_SFX, (f32)configSfxVolume / 127.0f * master_mod);
-    set_sequence_player_volume(SEQ_PLAYER_ENV, (f32)configEnvVolume / 127.0f * master_mod);
+    const f32 master_mod = (f32)configMasterVolume / 128.0f;
+    set_sequence_player_volume(SEQ_PLAYER_LEVEL, (f32)configMusicVolume / 128.0f * master_mod);
+    set_sequence_player_volume(SEQ_PLAYER_SFX, (f32)configSfxVolume / 128.0f * master_mod);
+    set_sequence_player_volume(SEQ_PLAYER_ENV, (f32)configEnvVolume / 128.0f * master_mod);
 
     game_loop_one_iteration();
     thread6_rumble_loop(NULL);
