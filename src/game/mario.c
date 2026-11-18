@@ -1415,8 +1415,8 @@ void update_mario_inputs(struct MarioState *m) {
     debug_print_speed_action_normal(m);
     
     /* Moonjump cheat */
-    while (Cheats.MoonJump == true && Cheats.EnableCheats == true && m->controller->buttonDown & L_TRIG ){
-        m->vel[1] = 25;
+    while (Cheats.MoonJump == true && Cheats.EnableCheats == true && m->controller->buttonDown & A_BUTTON ){
+        m->vel[1] = 45.0f; // Fly HOLD A, vel 45!
         break;   // TODO: Unneeded break?
     }
     /*End of moonjump cheat */
@@ -1748,8 +1748,10 @@ s32 execute_mario_action(UNUSED struct Object *o) {
         if (Cheats.InfiniteLives && gMarioState->numLives < 99)
             gMarioState->numLives += 1;
 
-        if (Cheats.SuperSpeed && gMarioState->forwardVel > 0)
-            gMarioState->forwardVel += 100;
+        if (Cheats.SuperSpeed && gMarioState->controller && gMarioState->controller->stickMag > 10) {
+            if (gMarioState->forwardVel > 5) gMarioState->forwardVel = 100;
+            else if (gMarioState->forwardVel < -5) gMarioState->forwardVel = -100;
+        }
     }
     /**
     * End of cheat stuff

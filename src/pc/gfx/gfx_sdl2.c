@@ -25,11 +25,18 @@
 #endif // End of OS-Specific GL defines
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 
 #include "gfx_window_manager_api.h"
 #include "gfx_screen_config.h"
+extern void imgui_menu_init(void *window, void *gl_context);
+extern void imgui_menu_frame(void);
+extern void imgui_menu_process_event(void *event);
+extern bool imgui_wants_capture(void);
+extern void imgui_menu_toggle(void);
+bool g_imgui_fullscreen = false;
 #include "../pc_main.h"
 #include "../configfile.h"
 #include "../cliopts.h"
@@ -252,6 +259,7 @@ static void gfx_sdl_init(const char *window_title) {
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
     );
     ctx = SDL_GL_CreateContext(wnd);
+    if (wnd && ctx) imgui_menu_init(wnd, ctx);
 
     gfx_sdl_set_vsync(configWindow.vsync);
 
@@ -345,6 +353,7 @@ static void gfx_sdl_fingerup(SDL_TouchFingerEvent sdl_event) {
 static void gfx_sdl_handle_events(void) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        imgui_menu_process_event(&event); // Biar ImGui bisa klik / drag / slider!
         switch (event.type) {
 #ifndef TARGET_WEB
             // Scancodes are broken in Emscripten SDL2: https://bugzilla.libsdl.org/show_bug.cgi?id=3259
@@ -444,6 +453,7 @@ static inline void sync_framerate_with_timer(void) {
 }
 
 static void gfx_sdl_swap_buffers_begin(void) {
+    imgui_menu_frame(); // Gambar ImGui tiap frame, kalo gak ada ini ImGui gak muncul!
     if (use_timer) sync_framerate_with_timer();
     SDL_GL_SwapWindow(wnd);
 }

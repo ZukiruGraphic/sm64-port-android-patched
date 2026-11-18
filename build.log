@@ -1,0 +1,143 @@
+make[1]: Entering directory '/data/data/com.termux/files/home/sm64-port-android/tools'
+make[1]: Nothing to be done for 'default'.
+make[1]: Leaving directory '/data/data/com.termux/files/home/sm64-port-android/tools'
+src/game/camera.c:707:1: warning: non-void function does not return a value [-Wreturn-type]
+  707 | }
+      | ^
+src/game/camera.c:1734:1: warning: non-void function does not return a value [-Wreturn-type]
+ 1734 | }
+      | ^
+src/game/camera.c:2059:1: warning: non-void function does not return a value [-Wreturn-type]
+ 2059 | }
+      | ^
+src/game/camera.c:3321:83: warning: incompatible pointer types passing 'f32 *' (aka 'float *') to parameter of type 's16 *' (aka 'short *') [-Wincompatible-pointer-types]
+ 3321 |             vec3f_get_dist_and_angle(gLakituState.focus, gLakituState.pos, &dist, &pitch, &yaw);
+      |                                                                                   ^~~~~~
+src/engine/math_util.h:73:69: note: passing argument to parameter 'pitch' here
+   73 | void vec3f_get_dist_and_angle(Vec3f from, Vec3f to, f32 *dist, s16 *pitch, s16 *yaw);
+      |                                                                     ^
+src/game/camera.c:3321:91: warning: incompatible pointer types passing 'f32 *' (aka 'float *') to parameter of type 's16 *' (aka 'short *') [-Wincompatible-pointer-types]
+ 3321 |             vec3f_get_dist_and_angle(gLakituState.focus, gLakituState.pos, &dist, &pitch, &yaw);
+      |                                                                                           ^~~~
+src/engine/math_util.h:73:81: note: passing argument to parameter 'yaw' here
+   73 | void vec3f_get_dist_and_angle(Vec3f from, Vec3f to, f32 *dist, s16 *pitch, s16 *yaw);
+      |                                                                                 ^
+src/game/camera.c:5097:12: warning: variable 'dummy' is uninitialized when used here [-Wuninitialized]
+ 5097 |     return dummy;
+      |            ^~~~~
+src/game/camera.c:4998:14: note: initialize the variable 'dummy' to silence this warning
+ 4998 |     s16 dummy;
+      |              ^
+      |               = 0
+src/game/camera.c:5515:21: warning: implicit conversion from 'int' to 's16' (aka 'short') changes value from 32768 to -32768 [-Wconstant-conversion]
+ 5515 |         *rotation = DEGREES(180);
+      |                   ~ ^~~~~~~~~~~~
+src/game/camera.h:26:35: note: expanded from macro 'DEGREES'
+   26 | #define DEGREES(x) ((x) * 0x10000 / 360)
+      |                     ~~~~~~~~~~~~~~^~~~~
+src/game/camera.c:9669:38: warning: implicit conversion from 'int' to 's16' (aka 'short') changes value from 32768 to -32768 [-Wconstant-conversion]
+ 9669 |     rotate_in_xz(c->focus, c->focus, DEGREES(180));
+      |     ~~~~~~~~~~~~                     ^~~~~~~~~~~~
+src/game/camera.h:26:35: note: expanded from macro 'DEGREES'
+   26 | #define DEGREES(x) ((x) * 0x10000 / 360)
+      |                     ~~~~~~~~~~~~~~^~~~~
+src/game/camera.c:9670:34: warning: implicit conversion from 'int' to 's16' (aka 'short') changes value from 32768 to -32768 [-Wconstant-conversion]
+ 9670 |     rotate_in_xz(c->pos, c->pos, DEGREES(180));
+      |     ~~~~~~~~~~~~                 ^~~~~~~~~~~~
+src/game/camera.h:26:35: note: expanded from macro 'DEGREES'
+   26 | #define DEGREES(x) ((x) * 0x10000 / 360)
+      |                     ~~~~~~~~~~~~~~^~~~~
+src/game/camera.c:9656:9: warning: variable 'posReturn' set but not used [-Wunused-but-set-variable]
+ 9656 |     s32 posReturn = 0;
+      |         ^
+src/game/camera.c:1736:13: warning: unused function 'stub_camera_1' [-Wunused-function]
+ 1736 | static void stub_camera_1(UNUSED s32 unused) {
+      |             ^~~~~~~~~~~~~
+src/game/camera.c:5466:13: warning: unused function 'unused_set_pos_rel_mario' [-Wunused-function]
+ 5466 | static void unused_set_pos_rel_mario(struct Camera *c, f32 leftRight, f32 yOff, f32 forwBack, s16 yawOff) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~
+src/game/camera.c:7365:13: warning: unused function 'stub_camera_5' [-Wunused-function]
+ 7365 | static void stub_camera_5(UNUSED struct Camera *c) {
+      |             ^~~~~~~~~~~~~
+src/game/camera.c:7851:24: warning: unused function 'cutscene_dance_unused' [-Wunused-function]
+ 7851 | static BAD_RETURN(s32) cutscene_dance_unused(UNUSED struct Camera *c) {
+      |                        ^~~~~~~~~~~~~~~~~~~~~
+src/game/camera.c:8764:13: warning: unused function 'unused_water_death_move_to_side_of_mario' [-Wunused-function]
+ 8764 | static void unused_water_death_move_to_side_of_mario(struct Camera *c) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/game/camera.c:9038:13: warning: unused function 'unused_cutscene_goto_cvar' [-Wunused-function]
+ 9038 | static void unused_cutscene_goto_cvar(struct Camera *c) {
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~
+src/game/camera.c:9199:13: warning: unused function 'unused_cam_to_mario' [-Wunused-function]
+ 9199 | static void unused_cam_to_mario(struct Camera *c) {
+      |             ^~~~~~~~~~~~~~~~~~~
+17 warnings generated.
+cc -c -O2 -I include -I build/us_pc -I build/us_pc/include -I src -I . -Iimgui -Iimgui/backends -I SDL/include -DRAPI_GL=1 -DWAPI_SDL2=1 -DAAPI_SDL2=1 -DCAPI_SDL2=1 -DHAVE_SDL2=1 -DVERSION_US -D_LANGUAGE_C -DNON_MATCHING -DAVOID_UB -DUSE_GLES -DF3DEX_GBI_2E -fno-strict-aliasing -fwrapv -DTOUCH_CONTROLS -DEXT_OPTIONS_MENU -fPIC -o build/us_pc/src/game/camera.o src/game/camera.c
+src/game/camera.c:707:1: warning: non-void function does not return a value [-Wreturn-type]
+  707 | }
+      | ^
+src/game/camera.c:1734:1: warning: non-void function does not return a value [-Wreturn-type]
+ 1734 | }
+      | ^
+src/game/camera.c:2059:1: warning: non-void function does not return a value [-Wreturn-type]
+ 2059 | }
+      | ^
+src/game/camera.c:3321:83: warning: incompatible pointer types passing 'f32 *' (aka 'float *') to parameter of type 's16 *' (aka 'short *') [-Wincompatible-pointer-types]
+ 3321 |             vec3f_get_dist_and_angle(gLakituState.focus, gLakituState.pos, &dist, &pitch, &yaw);
+      |                                                                                   ^~~~~~
+src/engine/math_util.h:73:69: note: passing argument to parameter 'pitch' here
+   73 | void vec3f_get_dist_and_angle(Vec3f from, Vec3f to, f32 *dist, s16 *pitch, s16 *yaw);
+      |                                                                     ^
+src/game/camera.c:3321:91: warning: incompatible pointer types passing 'f32 *' (aka 'float *') to parameter of type 's16 *' (aka 'short *') [-Wincompatible-pointer-types]
+ 3321 |             vec3f_get_dist_and_angle(gLakituState.focus, gLakituState.pos, &dist, &pitch, &yaw);
+      |                                                                                           ^~~~
+src/engine/math_util.h:73:81: note: passing argument to parameter 'yaw' here
+   73 | void vec3f_get_dist_and_angle(Vec3f from, Vec3f to, f32 *dist, s16 *pitch, s16 *yaw);
+      |                                                                                 ^
+src/game/camera.c:5515:21: warning: implicit conversion from 'int' to 's16' (aka 'short') changes value from 32768 to -32768 [-Wconstant-conversion]
+ 5515 |         *rotation = DEGREES(180);
+      |                   ~ ^~~~~~~~~~~~
+src/game/camera.h:26:35: note: expanded from macro 'DEGREES'
+   26 | #define DEGREES(x) ((x) * 0x10000 / 360)
+      |                     ~~~~~~~~~~~~~~^~~~~
+src/game/camera.c:9669:38: warning: implicit conversion from 'int' to 's16' (aka 'short') changes value from 32768 to -32768 [-Wconstant-conversion]
+ 9669 |     rotate_in_xz(c->focus, c->focus, DEGREES(180));
+      |     ~~~~~~~~~~~~                     ^~~~~~~~~~~~
+src/game/camera.h:26:35: note: expanded from macro 'DEGREES'
+   26 | #define DEGREES(x) ((x) * 0x10000 / 360)
+      |                     ~~~~~~~~~~~~~~^~~~~
+src/game/camera.c:9670:34: warning: implicit conversion from 'int' to 's16' (aka 'short') changes value from 32768 to -32768 [-Wconstant-conversion]
+ 9670 |     rotate_in_xz(c->pos, c->pos, DEGREES(180));
+      |     ~~~~~~~~~~~~                 ^~~~~~~~~~~~
+src/game/camera.h:26:35: note: expanded from macro 'DEGREES'
+   26 | #define DEGREES(x) ((x) * 0x10000 / 360)
+      |                     ~~~~~~~~~~~~~~^~~~~
+8 warnings generated.
+aarch64-linux-android-clang++  -L build/us_pc -o build/us_pc/libmain.so build/us_pc/src/engine/behavior_script.o build/us_pc/src/engine/geo_layout.o build/us_pc/src/engine/graph_node.o build/us_pc/src/engine/graph_node_manager.o build/us_pc/src/engine/level_script.o build/us_pc/src/engine/math_util.o build/us_pc/src/engine/surface_collision.o build/us_pc/src/engine/surface_load.o build/us_pc/src/game/area.o build/us_pc/src/game/behavior_actions.o build/us_pc/src/game/camera.o build/us_pc/src/game/debug.o build/us_pc/src/game/debug_course.o build/us_pc/src/game/envfx_bubbles.o build/us_pc/src/game/envfx_snow.o build/us_pc/src/game/game_init.o build/us_pc/src/game/geo_misc.o build/us_pc/src/game/hud.o build/us_pc/src/game/ingame_menu.o build/us_pc/src/game/interaction.o build/us_pc/src/game/level_geo.o build/us_pc/src/game/level_update.o build/us_pc/src/game/macro_special_objects.o build/us_pc/src/game/mario.o build/us_pc/src/game/mario_actions_airborne.o build/us_pc/src/game/mario_actions_automatic.o build/us_pc/src/game/mario_actions_cutscene.o build/us_pc/src/game/mario_actions_moving.o build/us_pc/src/game/mario_actions_object.o build/us_pc/src/game/mario_actions_stationary.o build/us_pc/src/game/mario_actions_submerged.o build/us_pc/src/game/mario_misc.o build/us_pc/src/game/mario_step.o build/us_pc/src/game/memory.o build/us_pc/src/game/moving_texture.o build/us_pc/src/game/obj_behaviors.o build/us_pc/src/game/obj_behaviors_2.o build/us_pc/src/game/object_collision.o build/us_pc/src/game/object_helpers.o build/us_pc/src/game/object_list_processor.o build/us_pc/src/game/options_menu.o build/us_pc/src/game/paintings.o build/us_pc/src/game/platform_displacement.o build/us_pc/src/game/print.o build/us_pc/src/game/profiler.o build/us_pc/src/game/rendering_graph_node.o build/us_pc/src/game/save_file.o build/us_pc/src/game/screen_transition.o build/us_pc/src/game/shadow.o build/us_pc/src/game/skybox.o build/us_pc/src/game/sound_init.o build/us_pc/src/game/spawn_object.o build/us_pc/src/game/spawn_sound.o build/us_pc/src/game/thread6.o build/us_pc/src/audio/data.o build/us_pc/src/audio/effects.o build/us_pc/src/audio/external.o build/us_pc/src/audio/globals_start.o build/us_pc/src/audio/heap.o build/us_pc/src/audio/load.o build/us_pc/src/audio/playback.o build/us_pc/src/audio/port_eu.o build/us_pc/src/audio/seqplayer.o build/us_pc/src/audio/synthesis.o build/us_pc/src/menu/file_select.o build/us_pc/src/menu/intro_geo.o build/us_pc/src/menu/level_select_menu.o build/us_pc/src/menu/star_select.o build/us_pc/src/buffers/buffers.o build/us_pc/src/buffers/framebuffers.o build/us_pc/src/buffers/gfx_output_buffer.o build/us_pc/src/buffers/zbuffer.o build/us_pc/actors/common0.o build/us_pc/actors/common0_geo.o build/us_pc/actors/common1.o build/us_pc/actors/common1_geo.o build/us_pc/actors/group0.o build/us_pc/actors/group0_geo.o build/us_pc/actors/group1.o build/us_pc/actors/group10.o build/us_pc/actors/group10_geo.o build/us_pc/actors/group11.o build/us_pc/actors/group11_geo.o build/us_pc/actors/group12.o build/us_pc/actors/group12_geo.o build/us_pc/actors/group13.o build/us_pc/actors/group13_geo.o build/us_pc/actors/group14.o build/us_pc/actors/group14_geo.o build/us_pc/actors/group15.o build/us_pc/actors/group15_geo.o build/us_pc/actors/group16.o build/us_pc/actors/group16_geo.o build/us_pc/actors/group17.o build/us_pc/actors/group17_geo.o build/us_pc/actors/group1_geo.o build/us_pc/actors/group2.o build/us_pc/actors/group2_geo.o build/us_pc/actors/group3.o build/us_pc/actors/group3_geo.o build/us_pc/actors/group4.o build/us_pc/actors/group4_geo.o build/us_pc/actors/group5.o build/us_pc/actors/group5_geo.o build/us_pc/actors/group6.o build/us_pc/actors/group6_geo.o build/us_pc/actors/group7.o build/us_pc/actors/group7_geo.o build/us_pc/actors/group8.o build/us_pc/actors/group8_geo.o build/us_pc/actors/group9.o build/us_pc/actors/group9_geo.o build/us_pc/levels/entry.o build/us_pc/levels/scripts.o build/us_pc/bin/cave.o build/us_pc/bin/debug_level_select.o build/us_pc/bin/effect.o build/us_pc/bin/fire.o build/us_pc/bin/generic.o build/us_pc/bin/grass.o build/us_pc/bin/inside.o build/us_pc/bin/machine.o build/us_pc/bin/mountain.o build/us_pc/bin/outside.o build/us_pc/bin/segment2.o build/us_pc/bin/sky.o build/us_pc/bin/snow.o build/us_pc/bin/spooky.o build/us_pc/bin/title_screen_bg.o build/us_pc/bin/water.o build/us_pc/data/behavior_data.o build/us_pc/src/pc/cheats.o build/us_pc/src/pc/cliopts.o build/us_pc/src/pc/configfile.o build/us_pc/src/pc/ini.o build/us_pc/src/pc/mixer.o build/us_pc/src/pc/pc_main.o build/us_pc/src/pc/platform.o build/us_pc/src/pc/ultra_reimplementation.o build/us_pc/src/pc/gfx/gfx_cc.o build/us_pc/src/pc/gfx/gfx_opengl.o build/us_pc/src/pc/gfx/gfx_opengl_legacy.o build/us_pc/src/pc/gfx/gfx_pc.o build/us_pc/src/pc/gfx/gfx_sdl1.o build/us_pc/src/pc/gfx/gfx_sdl2.o build/us_pc/src/pc/audio/audio_null.o build/us_pc/src/pc/audio/audio_sdl1.o build/us_pc/src/pc/audio/audio_sdl2.o build/us_pc/src/pc/controller/controller_emscripten_keyboard.o build/us_pc/src/pc/controller/controller_entry_point.o build/us_pc/src/pc/controller/controller_keyboard.o build/us_pc/src/pc/controller/controller_recorded_tas.o build/us_pc/src/pc/controller/controller_sdl1.o build/us_pc/src/pc/controller/controller_sdl2.o build/us_pc/src/pc/controller/controller_touchscreen.o build/us_pc/src/pc/fs/dirtree.o build/us_pc/src/pc/fs/fs.o build/us_pc/src/pc/fs/fs_packtype_dir.o build/us_pc/src/pc/fs/fs_packtype_zip.o build/us_pc/levels/bbh/leveldata.o build/us_pc/levels/bitdw/leveldata.o build/us_pc/levels/bitfs/leveldata.o build/us_pc/levels/bits/leveldata.o build/us_pc/levels/bob/leveldata.o build/us_pc/levels/bowser_1/leveldata.o build/us_pc/levels/bowser_2/leveldata.o build/us_pc/levels/bowser_3/leveldata.o build/us_pc/levels/castle_courtyard/leveldata.o build/us_pc/levels/castle_grounds/leveldata.o build/us_pc/levels/castle_inside/leveldata.o build/us_pc/levels/ccm/leveldata.o build/us_pc/levels/cotmc/leveldata.o build/us_pc/levels/ddd/leveldata.o build/us_pc/levels/ending/leveldata.o build/us_pc/levels/hmc/leveldata.o build/us_pc/levels/intro/leveldata.o build/us_pc/levels/jrb/leveldata.o build/us_pc/levels/lll/leveldata.o build/us_pc/levels/menu/leveldata.o build/us_pc/levels/pss/leveldata.o build/us_pc/levels/rr/leveldata.o build/us_pc/levels/sa/leveldata.o build/us_pc/levels/sl/leveldata.o build/us_pc/levels/ssl/leveldata.o build/us_pc/levels/thi/leveldata.o build/us_pc/levels/totwc/leveldata.o build/us_pc/levels/ttc/leveldata.o build/us_pc/levels/ttm/leveldata.o build/us_pc/levels/vcutm/leveldata.o build/us_pc/levels/wdw/leveldata.o build/us_pc/levels/wf/leveldata.o build/us_pc/levels/wmotr/leveldata.o build/us_pc/levels/bbh/script.o build/us_pc/levels/bitdw/script.o build/us_pc/levels/bitfs/script.o build/us_pc/levels/bits/script.o build/us_pc/levels/bob/script.o build/us_pc/levels/bowser_1/script.o build/us_pc/levels/bowser_2/script.o build/us_pc/levels/bowser_3/script.o build/us_pc/levels/castle_courtyard/script.o build/us_pc/levels/castle_grounds/script.o build/us_pc/levels/castle_inside/script.o build/us_pc/levels/ccm/script.o build/us_pc/levels/cotmc/script.o build/us_pc/levels/ddd/script.o build/us_pc/levels/ending/script.o build/us_pc/levels/hmc/script.o build/us_pc/levels/intro/script.o build/us_pc/levels/jrb/script.o build/us_pc/levels/lll/script.o build/us_pc/levels/menu/script.o build/us_pc/levels/pss/script.o build/us_pc/levels/rr/script.o build/us_pc/levels/sa/script.o build/us_pc/levels/sl/script.o build/us_pc/levels/ssl/script.o build/us_pc/levels/thi/script.o build/us_pc/levels/totwc/script.o build/us_pc/levels/ttc/script.o build/us_pc/levels/ttm/script.o build/us_pc/levels/vcutm/script.o build/us_pc/levels/wdw/script.o build/us_pc/levels/wf/script.o build/us_pc/levels/wmotr/script.o build/us_pc/levels/bbh/geo.o build/us_pc/levels/bitdw/geo.o build/us_pc/levels/bitfs/geo.o build/us_pc/levels/bits/geo.o build/us_pc/levels/bob/geo.o build/us_pc/levels/bowser_1/geo.o build/us_pc/levels/bowser_2/geo.o build/us_pc/levels/bowser_3/geo.o build/us_pc/levels/castle_courtyard/geo.o build/us_pc/levels/castle_grounds/geo.o build/us_pc/levels/castle_inside/geo.o build/us_pc/levels/ccm/geo.o build/us_pc/levels/cotmc/geo.o build/us_pc/levels/ddd/geo.o build/us_pc/levels/ending/geo.o build/us_pc/levels/hmc/geo.o build/us_pc/levels/intro/geo.o build/us_pc/levels/jrb/geo.o build/us_pc/levels/lll/geo.o build/us_pc/levels/menu/geo.o build/us_pc/levels/pss/geo.o build/us_pc/levels/rr/geo.o build/us_pc/levels/sa/geo.o build/us_pc/levels/sl/geo.o build/us_pc/levels/ssl/geo.o build/us_pc/levels/thi/geo.o build/us_pc/levels/totwc/geo.o build/us_pc/levels/ttc/geo.o build/us_pc/levels/ttm/geo.o build/us_pc/levels/vcutm/geo.o build/us_pc/levels/wdw/geo.o build/us_pc/levels/wf/geo.o build/us_pc/levels/wmotr/geo.o build/us_pc/src/pc/imgui_menu.o build/us_pc/src/pc/gfx/gfx_direct3d11.o build/us_pc/src/pc/gfx/gfx_direct3d12.o build/us_pc/src/pc/gfx/gfx_direct3d_common.o build/us_pc/src/pc/gfx/gfx_dxgi.o build/us_pc/imgui/imgui.o build/us_pc/imgui/imgui_demo.o build/us_pc/imgui/imgui_draw.o build/us_pc/imgui/imgui_impl_opengl3.o build/us_pc/imgui/imgui_impl_sdl2.o build/us_pc/imgui/imgui_tables.o build/us_pc/imgui/imgui_widgets.o  build/us_pc/assets/mario_anim_data.o build/us_pc/assets/demo_data.o build/us_pc/bin/bbh_skybox.o build/us_pc/bin/bidw_skybox.o build/us_pc/bin/bitfs_skybox.o build/us_pc/bin/bits_skybox.o build/us_pc/bin/ccm_skybox.o build/us_pc/bin/cloud_floor_skybox.o build/us_pc/bin/clouds_skybox.o build/us_pc/bin/ssl_skybox.o build/us_pc/bin/water_skybox.o build/us_pc/bin/wdw_skybox.o build/us_pc/sound/sound_data.o  build/us_pc/lib/src/alBnkfNew.o build/us_pc/lib/src/guLookAtRef.o build/us_pc/lib/src/guMtxF2L.o build/us_pc/lib/src/guNormalize.o build/us_pc/lib/src/guOrthoF.o build/us_pc/lib/src/guPerspectiveF.o build/us_pc/lib/src/guRotateF.o build/us_pc/lib/src/guScaleF.o build/us_pc/lib/src/guTranslateF.o build/us_pc/lib/src/ldiv.o build/us_pc/src/goddard/debug_utils.o build/us_pc/src/goddard/draw_objects.o build/us_pc/src/goddard/dynlist_proc.o build/us_pc/src/goddard/gd_main.o build/us_pc/src/goddard/gd_math.o build/us_pc/src/goddard/gd_memory.o build/us_pc/src/goddard/joints.o build/us_pc/src/goddard/objects.o build/us_pc/src/goddard/old_menu.o build/us_pc/src/goddard/particles.o build/us_pc/src/goddard/renderer.o build/us_pc/src/goddard/sfx.o build/us_pc/src/goddard/shape_helper.o build/us_pc/src/goddard/skin.o build/us_pc/src/goddard/skin_movement.o build/us_pc/src/goddard/dynlists/anim_group_1.o build/us_pc/src/goddard/dynlists/anim_group_2.o build/us_pc/src/goddard/dynlists/anim_mario_eyebrows_1.o build/us_pc/src/goddard/dynlists/anim_mario_lips_1.o build/us_pc/src/goddard/dynlists/anim_mario_lips_2.o build/us_pc/src/goddard/dynlists/anim_mario_mustache_left.o build/us_pc/src/goddard/dynlists/anim_mario_mustache_right.o build/us_pc/src/goddard/dynlists/dynlist_mario_face.o build/us_pc/src/goddard/dynlists/dynlist_mario_master.o build/us_pc/src/goddard/dynlists/dynlist_test_cube.o build/us_pc/src/goddard/dynlists/dynlist_unused.o build/us_pc/src/goddard/dynlists/dynlists_mario_eyebrows_mustache.o build/us_pc/src/goddard/dynlists/dynlists_mario_eyes.o -L./android/lib/arm64-v8a/ -lm -lGLESv2 -lhidapi -lSDL2 -shared
+cp -r android build/us_pc && \
+cp /data/data/com.termux/files/usr/lib/libc++_shared.so build/us_pc/android/lib/arm64-v8a/ && \
+cp build/us_pc/libmain.so build/us_pc/android/lib/arm64-v8a/ && \
+cd build/us_pc/android && \
+zip -r ../../../build/us_pc/sm64.us.f3dex2e.unsigned.apk ./* && \
+cd ../../.. && \
+rm -rf build/us_pc/android
+updating: AndroidManifest.xml (deflated 68%)
+updating: classes.dex (deflated 52%)
+updating: lib/ (stored 0%)
+updating: lib/arm64-v8a/ (stored 0%)
+updating: lib/arm64-v8a/libSDL2.so (deflated 75%)
+updating: lib/arm64-v8a/libhidapi.so (deflated 66%)
+updating: lib/arm64-v8a/libc++_shared.so (deflated 67%)
+updating: lib/arm64-v8a/libmain.so (deflated 58%)
+updating: lib/armeabi-v7a/ (stored 0%)
+updating: lib/armeabi-v7a/libSDL2.so (deflated 67%)
+updating: lib/armeabi-v7a/libhidapi.so (deflated 53%)
+updating: lib/x86/ (stored 0%)
+updating: lib/x86/libSDL2.so (deflated 78%)
+updating: lib/x86/libhidapi.so (deflated 66%)
+updating: lib/x86_64/ (stored 0%)
+updating: lib/x86_64/libSDL2.so (deflated 77%)
+updating: lib/x86_64/libhidapi.so (deflated 68%)
+updating: resources.arsc (deflated 68%)
+cp build/us_pc/sm64.us.f3dex2e.unsigned.apk build/us_pc/sm64.us.f3dex2e.apk
+apksigner sign --cert certificate.pem --key key.pk8 build/us_pc/sm64.us.f3dex2e.apk

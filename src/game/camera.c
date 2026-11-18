@@ -407,6 +407,8 @@ f32 unused8032CFE0 = 1000.0f;
 f32 unused8032CFE4 = 800.0f;
 u32 unused8032CFE8 = 0;
 f32 gCameraZoomDist = 800.0f;
+f32 g_LakituZoomDist = 800.0f;
+int g_ZoomHold = 0; // -1 = Z- tahan, 0 = diam, 1 = Z+ tahan
 
 /**
  * A cutscene that plays when the player interacts with an object
@@ -3023,6 +3025,15 @@ void update_lakitu(struct Camera *c) {
  * Gets controller input, checks for cutscenes, handles mode changes, and moves the camera
  */
 void update_camera(struct Camera *c) {
+    // Free Cam anti-cutscene: kalo lagi drag, cutscene di-cancel biar gak ke-lock!
+    {
+        extern float g_camDragYaw;
+        extern float g_camDragPitch;
+        static int sFreeCamTimer = 0;
+        if (g_camDragYaw != 0 || g_camDragPitch != 0) sFreeCamTimer = 60;
+        if (sFreeCamTimer > 0) { sFreeCamTimer--; c->cutscene = 0; c->mode = CAMERA_MODE_FREE_ROAM; }
+    }
+    // Drag + Zoom dipindah ke AKHIR update_camera (sesudah update_lakitu), biar gak ketimpa!
     UNUSED u8 unused[24];
 
     gCamera = c;
@@ -3239,6 +3250,49 @@ void update_camera(struct Camera *c) {
     }
 
     update_lakitu(c);
+
+    // Drag + Zoom FINAL - sesudah update_lakitu, ubah c->pos + gLakituState barengan biar gak balik!
+    {
+        extern float g_camDragYaw;
+        extern float g_camDragPitch;
+        static f32 sStoredDist_Z2 = 800.0f;
+        if (g_LakituZoomDist != sStoredDist_Z2) sStoredDist_Z2 = g_LakituZoomDist;
+        if (g_ZoomHold == 1) { sStoredDist_Z2 -= 15.0f; if (sStoredDist_Z2 < 200.0f) sStoredDist_Z2 = 200.0f; g_LakituZoomDist = sStoredDist_Z2; }
+        if (g_ZoomHold == -1) { sStoredDist_Z2 += 15.0f; if (sStoredDist_Z2 > 2000.0f) sStoredDist_Z2 = 2000.0f; g_LakituZoomDist = sStoredDist_Z2; }
+        gCameraZoomDist = sStoredDist_Z2; // Selalu sync, biar slider juga jalan, bukan cuma ZoomHold!
+        // Terapin drag + zoom - offset PERSISTEN, di-apply tiap frame biar atas-bawah gak balik!
+        {
+            // Yaw/Pitch ABSOLUT custom - disimpen sendiri, gak ngikutin yaw bawaan (hadep Mario)!
+            static int sCustomYaw = 0; // int biar gak overflow s16!
+            static int sCustomPitch = 0; // int biar muat 50k!
+            static int sCustomInit = 0;
+            if (g_camDragYaw != 0) { sCustomYaw += (int)(g_camDragYaw * 3.0f); g_camDragYaw = 0; } // *0.01, biar gak langsung mentok!
+            if (g_camDragPitch != 0) { sCustomPitch += (int)(g_camDragPitch * 3.0f); g_camDragPitch = 0; } // *0.01, dari 0.1f kegedean 10x!
+            if (sCustomPitch > 12000) sCustomPitch = 12000; // 66 derajat, aman, gak invert! // 30k, aman s16, biar gak invert pas mentok!
+            if (sCustomPitch < -12000) sCustomPitch = -12000;
+            // Fokus = Mario (tengah), tapi yaw/pitch = CUSTOM ABSOLUT, bukan hadep Mario!
+            vec3f_copy(c->focus, sMarioCamState->pos);
+            c->focus[1] += 125.0f;
+            vec3f_copy(gLakituState.focus, c->focus);
+            vec3f_copy(gLakituState.goalFocus, c->focus);
+            f32 dist; s16 pitch, yaw;
+            vec3f_get_dist_and_angle(c->focus, c->pos, &dist, &pitch, &yaw);
+            // Init pertama kali dari yaw bawaan, abis itu gak pernah ngikutin hadep Mario lagi!
+            if (sCustomInit == 0) { sCustomYaw = yaw; sCustomPitch = pitch; sCustomInit = 1; }
+            yaw = sCustomYaw;
+            pitch = sCustomPitch;
+            dist = gCameraZoomDist;
+            vec3f_set_dist_and_angle(c->focus, c->pos, dist, pitch, yaw);
+            vec3f_copy(gLakituState.pos, c->pos);
+            vec3f_copy(gLakituState.goalPos, c->pos);
+            vec3f_copy(gLakituState.focus, c->focus);
+            vec3f_copy(gLakituState.goalFocus, c->focus);
+            c->yaw = yaw;
+            c->nextYaw = yaw;
+            gLakituState.yaw = yaw;
+            gLakituState.nextYaw = yaw;
+        }
+    }
 
     gLakituState.lastFrameAction = sMarioCamState->action;
 }

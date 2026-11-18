@@ -90,18 +90,22 @@ bool         configCameraMouse   = false;
 #endif
 bool         configSkipIntro     = 0;
 bool         configHUD           = true;
+float        configSensH         = 1.0f;
+float        configZoom          = 800.0f; // Zoom Lakitu, default 800 // Horizontal Sensitivity, default 1.0 = 18000
+float        configSensV         = 1.0f; // Vertical Sensitivity, default 1.0 = 9000
 #ifdef DISCORDRPC
 bool         configDiscordRPC    = true;
 #endif
 
 static const struct ConfigOption options[] = {
     {.name = "fullscreen",           .type = CONFIG_TYPE_BOOL, .boolValue = &configWindow.fullscreen},
-    {.name = "window_x",             .type = CONFIG_TYPE_UINT, .uintValue = &configWindow.x},
-    {.name = "window_y",             .type = CONFIG_TYPE_UINT, .uintValue = &configWindow.y},
-    {.name = "window_w",             .type = CONFIG_TYPE_UINT, .uintValue = &configWindow.w},
-    {.name = "window_h",             .type = CONFIG_TYPE_UINT, .uintValue = &configWindow.h},
+    // window_x/y/w/h DIHAPUS, di Android ngasih -1 / 2310 / 972 sampah, bikin ke-reset!
+    {.name = "hud",                  .type = CONFIG_TYPE_BOOL, .boolValue = &configHUD},
     {.name = "vsync",                .type = CONFIG_TYPE_BOOL, .boolValue = &configWindow.vsync},
     {.name = "texture_filtering",    .type = CONFIG_TYPE_UINT, .uintValue = &configFiltering},
+    {.name = "sens_h",               .type = CONFIG_TYPE_FLOAT, .floatValue = &configSensH},
+    {.name = "sens_v",               .type = CONFIG_TYPE_FLOAT, .floatValue = &configSensV},
+    {.name = "zoom",                 .type = CONFIG_TYPE_FLOAT, .floatValue = &configZoom},
     {.name = "master_volume",        .type = CONFIG_TYPE_UINT, .uintValue = &configMasterVolume},
     {.name = "music_volume",         .type = CONFIG_TYPE_UINT, .uintValue = &configMusicVolume},
     {.name = "sfx_volume",           .type = CONFIG_TYPE_UINT, .uintValue = &configSfxVolume},
@@ -225,12 +229,13 @@ const char *configfile_name(void) {
 
 // Loads the config file specified by 'filename'
 void configfile_load(const char *filename) {
-    fs_file_t *file;
+    FILE *file;
+    char linebuf[512];
     char *line;
 
     printf("Loading configuration from '%s'\n", filename);
 
-    file = fs_open(filename);
+    file = fopen(fs_get_write_path(filename), "r"); // BACA DARI WRITE PATH, SAMA KAYAK SAVE! Bukan dari APK!
     if (file == NULL) {
         // Create a new config file and save defaults
         printf("Config file '%s' not found. Creating it.\n", filename);
@@ -239,7 +244,8 @@ void configfile_load(const char *filename) {
     }
 
     // Go through each line in the file
-    while ((line = read_file_line(file)) != NULL) {
+    while (fgets(linebuf, sizeof(linebuf), file) != NULL) {
+        line = linebuf;
         char *p = line;
         char *tokens[1 + MAX_BINDS];
         int numTokens;
@@ -291,10 +297,9 @@ void configfile_load(const char *filename) {
             } else
                 puts("error: expected value");
         }
-        free(line);
     }
 
-    fs_close(file);
+    fclose(file);
 }
 
 // Writes the config file to 'filename'

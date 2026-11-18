@@ -1,9 +1,7 @@
 //Not gonna name it .inc.c because of makefile.
 //This file will have more layouts for dynamic controls later.
-
-//DEFAULT
-struct Position GetDefaultJoystickPos() {
-    struct Position ret = { .x = GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(60) << 2, .y = 720 };
+                                                //DEFAULT
+struct Position GetDefaultJoystickPos() {           struct Position ret = { .x = GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(60) << 2, .y = 720 };
     return ret;
 }
 
@@ -52,15 +50,30 @@ struct Position GetDefaultRightPos() {
     return ret;
 }
 
+// Z+ / Z- BARU buat custom zoom, BUKAN Z_TRIG game, BUKAN DPad game
+// Taruh kanan atas, di atas C-Up, biar bisa dipencet sambil main, gak perlu buka ImGui
+struct Position GetDefaultZoomInPos() {
+    struct Position ret = { .x = SCREEN_WIDTH_API / 2 - 80, .y = 80 };
+    return ret;
+}
+
+struct Position GetDefaultZoomOutPos() {
+    struct Position ret = { .x = SCREEN_WIDTH_API / 2 + 80, .y = 80 };
+    return ret;
+}
+
 static struct ControlElement ControlElementsDefault[] = {
 {.type = Joystick, .GetPos = GetDefaultJoystickPos},
 {.type = Button, .GetPos = GetDefaultStartPos, .character = 's', .buttonID = START_BUTTON},
 {.type = Button, .GetPos = GetDefaultAPos, .character = 'a', .buttonID = A_BUTTON},
 {.type = Button, .GetPos = GetDefaultBPos, .character = 'b', .buttonID = B_BUTTON},
-{.type = Button, .GetPos = GetDefaultZPos, .character = 't', .buttonID = Z_TRIG}, //There's no z character, so let's just call it t for trigger
+{.type = Button, .GetPos = GetDefaultZPos, .character = 't', .buttonID = Z_TRIG},
 {.type = Button, .GetPos = GetDefaultRPos, .character = 'r', .buttonID = R_TRIG},
 {.type = Button, .GetPos = GetDefaultUpPos, .character = 'u', .buttonID = U_CBUTTONS},
 {.type = Button, .GetPos = GetDefaultDownPos, .character = 'd', .buttonID = D_CBUTTONS},
 {.type = Button, .GetPos = GetDefaultLeftPos, .character = 'l', .buttonID = L_CBUTTONS},
-{.type = Button, .GetPos = GetDefaultRightPos, .character = 'r', .buttonID = R_CBUTTONS}
+{.type = Button, .GetPos = GetDefaultRightPos, .character = 'r', .buttonID = R_CBUTTONS},
+// Z+ / Z- baru, buttonID = 0 (gak ke game), zoomDir = 1 / -1 (cuma set g_ZoomHold)
+{.type = Button, .GetPos = GetDefaultZoomInPos, .character = 'p', .buttonID = 0, .zoomDir = 1},
+{.type = Button, .GetPos = GetDefaultZoomOutPos, .character = 'm', .buttonID = 0, .zoomDir = -1}
 };

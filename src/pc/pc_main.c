@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #ifdef TARGET_WEB
 #include <emscripten.h>
@@ -27,6 +29,10 @@
 #include "pc_main.h"
 #include "cliopts.h"
 #include "configfile.h"
+#include "pc/cheats.h"
+#include "pc/savestate.h"
+extern float g_LakituZoomDist;
+extern int g_ZoomHold;
 #include "controller/controller_api.h"
 #include "controller/controller_keyboard.h"
 #include "controller/controller_touchscreen.h"
@@ -124,6 +130,7 @@ void game_deinit(void) {
 #ifdef DISCORDRPC
     discord_shutdown();
 #endif
+    configZoom = g_LakituZoomDist; // Simpen zoom terakhir sebelum save!
     configfile_save(configfile_name());
     controller_shutdown();
     audio_shutdown();
@@ -214,13 +221,22 @@ void main_func(void) {
 #endif
     const char *userpath = gCLIOpts.SavePath[0] ? gCLIOpts.SavePath : sys_user_path();
     fs_init(sys_ropaths, gamedir, userpath);
+    configfile_load(configfile_name()); // LOAD DARI FILE YANG SAMA KAYAK SAVE! Biar gak ke-reset!
+    // mkdir savestate AMAN - cek userpath NULL dulu!
+    { const char *sp = fs_get_write_path("savestate"); if (sp && sp[0]) mkdir(sp, 0777); } // AMAN - pake fs_writepath, bukan userpath dangling!
+    savestate_init(); // AMAN - slot_path udah cek NULL, init cek path[0]==0!
 
-    configfile_load(configfile_name());
+    // Hacks + Debug GAK KE-SAVE, balik default tiap buka game!
+    // Hacks + Debug GAK KE-SAVE, balik default tiap buka game! (AMAN, sesudah configfile_load)
+    memset(&Cheats, 0, sizeof(Cheats));
+    g_LakituZoomDist = configZoom; // Pake zoom yang udah ke-load, jangan reset ke 800!
+    g_ZoomHold = 0;
 
     if (gCLIOpts.FullScreen == 1)
         configWindow.fullscreen = true;
     else if (gCLIOpts.FullScreen == 2)
         configWindow.fullscreen = false;
+
 
     const size_t poolsize = gCLIOpts.PoolSize ? gCLIOpts.PoolSize : DEFAULT_POOL_SIZE;
     u64 *pool = malloc(poolsize);

@@ -46,6 +46,8 @@ struct ControlElement {
     int buttonID;
     char character;
     int slideTouch;
+    //Zoom baru Z+ / Z- : 0 = button game biasa, 1 = Z+ (zoom masuk), -1 = Z- (zoom keluar), buttonID = 0 biar gak ke game
+    int zoomDir;
 };
 
 #include "controller_touchscreen_layouts.inc"
@@ -224,6 +226,8 @@ static void touchscreen_init(void) {
 }
 
 static void touchscreen_read(OSContPad *pad) {
+    extern int g_ZoomHold; // Z+ / Z- dari virtual control, bukan DPad game, bukan Z_TRIG game
+    int zoomHeld = 0; // 0 = gak ada Z+ / Z- virtual yang dipencet, 1 = Z+ dipencet, -1 = Z- dipencet
     for(int i = 0; i < ControlElementsLength; i++) {
         switch (ControlElements[i].type) {
             case Joystick:
@@ -234,11 +238,17 @@ static void touchscreen_read(OSContPad *pad) {
                 break;
             case Button:
                 if (ControlElements[i].touchID) {
-                    pad->button |= ControlElements[i].buttonID;
+                    pad->button |= ControlElements[i].buttonID; // Z+ / Z- buttonID = 0, jadi game gak ke-trigger, aman!
+                    if (ControlElements[i].zoomDir != 0) {
+                        zoomHeld = ControlElements[i].zoomDir; // Z+ = 1, Z- = -1, cuma set g_ZoomHold
+                    }
                 }
                 break;
         }
     }
+    // Touchscreen jalan duluan, jadi selalu set g_ZoomHold = zoomHeld (0 = berhenti, biar gak nyangkut)
+    // ImGui jalan sesudah touchscreen, jadi kalo ImGui Z+ / Z- yang dipencet, ImGui bakal set lagi ke 1 / -1, aman!
+    g_ZoomHold = zoomHeld;
 }
 
 static u32 touchscreen_rawkey(void) { //dunno what this does but I'll skip it for now
