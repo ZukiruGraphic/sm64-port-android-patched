@@ -582,9 +582,11 @@ static void gfx_opengl_set_viewport(int x, int y, int width, int height) {
     glViewport(x, y, width, height);
 }
 
+
 static void gfx_opengl_set_scissor(int x, int y, int width, int height) {
     glScissor(x, y, width, height);
 }
+
 
 static void gfx_opengl_set_use_alpha(bool use_alpha) {
     if (use_alpha) {
@@ -644,8 +646,77 @@ static void gfx_opengl_init(void) {
 static void gfx_opengl_on_resize(void) {
 }
 
+static GLuint s_resFBO = 0, s_resTex = 0, s_resDepth = 0;
+static int s_resW = 0, s_resH = 0, s_resScaleLast = 100;
+static int s_winW = 1280, s_winH = 720;
+static GLuint s_blitProg = 0, s_blitVBO = 0;
+static void res_create_fbo(int w, int h) {
+    if (s_resFBO) { glDeleteFramebuffers(1, &s_resFBO); glDeleteTextures(1, &s_resTex); glDeleteRenderbuffers(1, &s_resDepth); s_resFBO = 0; }
+    s_resW = w; s_resH = h;
+    glGenFramebuffers(1, &s_resFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, s_resFBO);
+    glGenTextures(1, &s_resTex);
+    glBindTexture(GL_TEXTURE_2D, s_resTex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_resTex, 0);
+    glGenRenderbuffers(1, &s_resDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, s_resDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, s_resDepth);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+static void res_blit(void) {
+    // SAVE state game - biar gak ngerusak frame berikutnya
+    GLint oldProg = 0, oldVBO = 0, oldTex = 0, oldFBO = 0;
+    GLint oldViewport[4] = {0,0,0,0};
+    GLboolean oldDepth = glIsEnabled(GL_DEPTH_TEST);
+    GLboolean oldBlend = glIsEnabled(GL_BLEND);
+    GLboolean oldScissor = glIsEnabled(GL_SCISSOR_TEST);
+    glGetIntegerv(GL_CURRENT_PROGRAM, &oldProg);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &oldVBO);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &oldTex);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &oldFBO);
+    glGetIntegerv(GL_VIEWPORT, oldViewport);
+    if (!s_blitProg) {
+        const char *vs = "attribute vec2 aPos; attribute vec2 aUV; varying vec2 vUV; void main(){ vUV = aUV; gl_Position = vec4(aPos, 0.0, 1.0); }";
+        const char *fs = "precision mediump float; varying vec2 vUV; uniform sampler2D uTex; void main(){ gl_FragColor = texture2D(uTex, vUV); }";
+        GLuint v = glCreateShader(GL_VERTEX_SHADER); glShaderSource(v, 1, &vs, NULL); glCompileShader(v);
+        GLuint f = glCreateShader(GL_FRAGMENT_SHADER); glShaderSource(f, 1, &fs, NULL); glCompileShader(f);
+        s_blitProg = glCreateProgram(); glAttachShader(s_blitProg, v); glAttachShader(s_blitProg, f); glLinkProgram(s_blitProg);
+        float quad[] = { -1,-1, 0,0,  1,-1, 1,0,  -1,1, 0,1,  1,1, 1,1 };
+        glGenBuffers(1, &s_blitVBO); glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO); glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, oldVBO);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, s_winW, s_winH);
+    glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST); glDisable(GL_BLEND);
+    glUseProgram(s_blitProg);
+    glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s_resTex);
+    glUniform1i(glGetUniformLocation(s_blitProg, "uTex"), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO);
+    GLint aPos = glGetAttribLocation(s_blitProg, "aPos"); GLint aUV = glGetAttribLocation(s_blitProg, "aUV");
+    glEnableVertexAttribArray(aPos); glEnableVertexAttribArray(aUV);
+    glVertexAttribPointer(aPos, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+    glVertexAttribPointer(aUV, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float)));
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisableVertexAttribArray(aPos); glDisableVertexAttribArray(aUV);
+    // RESTORE state game - balikin semua ke state sebelum blit
+    glUseProgram(oldProg);
+    glBindBuffer(GL_ARRAY_BUFFER, oldVBO);
+    glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, oldTex);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // JANGAN balik ke FBO, ImGui render ke layar!
+    glViewport(0, 0, s_winW, s_winH); // Viewport balik ke layar penuh, bukan ke FBO kecil
+    if (oldDepth) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+    if (oldBlend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
+    if (oldScissor) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST);
+}
 static void gfx_opengl_start_frame(void) {
     frame_count++;
+    { extern unsigned int g_resolutionScale; int vp[4]; int curFBO = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &curFBO); glGetIntegerv(GL_VIEWPORT, vp); if (curFBO == 0 && vp[2] > 0 && vp[3] > 0) { s_winW = vp[2]; s_winH = vp[3]; } int sc = (int)g_resolutionScale; if (sc < 50) sc = 50; if (sc > 100) sc = 100; if (0 && sc < 100) { int rw = s_winW * sc / 100; int rh = s_winH * sc / 100; if (rw < 8) rw = 8; if (rh < 8) rh = 8; if (!s_resFBO || s_resW != rw || s_resH != rh || s_resScaleLast != sc) { res_create_fbo(rw, rh); s_resScaleLast = sc; } glBindFramebuffer(GL_FRAMEBUFFER, s_resFBO); glViewport(0, 0, rw, rh); } else { if (s_resFBO) { glBindFramebuffer(GL_FRAMEBUFFER, 0); } s_resScaleLast = 100; } }
 
     glDisable(GL_SCISSOR_TEST);
     glDepthMask(GL_TRUE); // Must be set to clear Z-buffer
@@ -654,8 +725,7 @@ static void gfx_opengl_start_frame(void) {
     glEnable(GL_SCISSOR_TEST);
 }
 
-static void gfx_opengl_end_frame(void) {
-}
+static void gfx_opengl_end_frame(void) { { extern unsigned int g_resolutionScale; if (0 && (int)g_resolutionScale < 100 && s_resFBO) { res_blit(); } } }
 
 static void gfx_opengl_finish_render(void) {
 }

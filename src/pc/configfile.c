@@ -8,6 +8,7 @@
 
 #include "platform.h"
 #include "configfile.h"
+struct Position { int x; int y; };
 #include "cliopts.h"
 #include "gfx/gfx_screen_config.h"
 #include "gfx/gfx_window_manager_api.h"
@@ -38,6 +39,7 @@ struct ConfigOption {
  */
 
 // Video/audio stuff
+unsigned int g_resolutionScale = 100;
 ConfigWindow configWindow       = {
     .x = WAPI_WIN_CENTERPOS,
     .y = WAPI_WIN_CENTERPOS,
@@ -91,6 +93,13 @@ bool         configCameraMouse   = false;
 bool         configSkipIntro     = 0;
 bool         configHUD           = true;
 float        configSensH         = 1.0f;
+extern int g_snapGrid;
+extern float g_gridSize;
+extern int g_showCenter;
+float configTouchScale = 1.0f;
+float configTouchAlpha = 1.0f;
+float        configAnalogSens    = 1.0f;
+int          configInvertY       = 0;
 float        configZoom          = 800.0f; // Zoom Lakitu, default 800 // Horizontal Sensitivity, default 1.0 = 18000
 float        configSensV         = 1.0f; // Vertical Sensitivity, default 1.0 = 9000
 #ifdef DISCORDRPC
@@ -101,10 +110,18 @@ static const struct ConfigOption options[] = {
     {.name = "fullscreen",           .type = CONFIG_TYPE_BOOL, .boolValue = &configWindow.fullscreen},
     // window_x/y/w/h DIHAPUS, di Android ngasih -1 / 2310 / 972 sampah, bikin ke-reset!
     {.name = "hud",                  .type = CONFIG_TYPE_BOOL, .boolValue = &configHUD},
+    {.name = "resolution_scale", .type = CONFIG_TYPE_UINT, .uintValue = &g_resolutionScale},
     {.name = "vsync",                .type = CONFIG_TYPE_BOOL, .boolValue = &configWindow.vsync},
     {.name = "texture_filtering",    .type = CONFIG_TYPE_UINT, .uintValue = &configFiltering},
+    {.name = "analog_sens", .type = CONFIG_TYPE_FLOAT, .floatValue = &configAnalogSens},
+    {.name = "invert_y", .type = CONFIG_TYPE_BOOL, .boolValue = &configInvertY},
     {.name = "sens_h",               .type = CONFIG_TYPE_FLOAT, .floatValue = &configSensH},
     {.name = "sens_v",               .type = CONFIG_TYPE_FLOAT, .floatValue = &configSensV},
+    {.name = "snap_grid", .type = CONFIG_TYPE_BOOL, .boolValue = &g_snapGrid},
+    {.name = "grid_size", .type = CONFIG_TYPE_FLOAT, .floatValue = &g_gridSize},
+    {.name = "show_center", .type = CONFIG_TYPE_BOOL, .boolValue = &g_showCenter},
+    {.name = "touch_scale", .type = CONFIG_TYPE_FLOAT, .floatValue = &configTouchScale},
+    {.name = "touch_alpha", .type = CONFIG_TYPE_FLOAT, .floatValue = &configTouchAlpha},
     {.name = "zoom",                 .type = CONFIG_TYPE_FLOAT, .floatValue = &configZoom},
     {.name = "master_volume",        .type = CONFIG_TYPE_UINT, .uintValue = &configMasterVolume},
     {.name = "music_volume",         .type = CONFIG_TYPE_UINT, .uintValue = &configMusicVolume},
@@ -267,6 +284,17 @@ void configfile_load(const char *filename) {
                         break;
                     }
                 }
+                if (strncmp(tokens[0], "btn_pos_", 8) == 0) {
+                    extern int hasCustom[];
+                    extern struct Position customPos[];
+                    int idx = atoi(tokens[0] + 8);
+                    if (idx >= 0 && idx < 32 && numTokens >= 3) {
+                        customPos[idx].x = atoi(tokens[1]);
+                        customPos[idx].y = atoi(tokens[2]);
+                        hasCustom[idx] = 1;
+                    }
+                    continue;
+                }
                 if (option == NULL)
                     printf("unknown option '%s'\n", tokens[0]);
                 else {
@@ -299,6 +327,10 @@ void configfile_load(const char *filename) {
         }
     }
 
+    extern int hasCustom[];
+    extern struct Position customPos[];
+    { FILE *dbg = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/debug_drag.txt", "a"); if (dbg) { extern int hasCustom[]; fprintf(dbg, "SAVE hasCustom0=%d hasCustom1=%d hasCustom2=%d\n", hasCustom[0], hasCustom[1], hasCustom[2]); fclose(dbg); } }
+    for (int i = 0; i < 13; i++) { extern struct Position customPos[]; extern int hasCustom[]; if (hasCustom[i]) fprintf(file, "btn_pos_%d %d %d\n", i, customPos[i].x, customPos[i].y); }
     fclose(file);
 }
 
