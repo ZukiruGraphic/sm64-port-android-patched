@@ -1,3 +1,4 @@
+#include <pthread.h>
 #ifdef WAPI_SDL2
 
 #ifdef __MINGW32__
@@ -130,6 +131,8 @@ static inline void sys_sleep(const uint64_t us) {
     usleep(us);
 }
 
+int g_sdlWinW = 1280;
+int g_sdlWinH = 720;
 static int test_vsync(void) {
     // Even if SDL_GL_SetSwapInterval succeeds, it doesn't mean that VSync actually works.
     // A 60 Hz monitor should have a swap interval of 16.67 milliseconds.
@@ -183,7 +186,7 @@ static inline void gfx_sdl_set_vsync(const bool enabled) {
         const int vblanks = gCLIOpts.SyncFrames ? (int)gCLIOpts.SyncFrames : test_vsync();
         if (vblanks) {
             printf("determined swap interval: %d\n", vblanks);
-            SDL_GL_SetSwapInterval(vblanks);
+            SDL_GL_SetSwapInterval(2);
             use_timer = false;
             return;
         } else {
@@ -287,6 +290,7 @@ static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
 }
 
 static void gfx_sdl_get_dimensions(uint32_t *width, uint32_t *height) {
+    { int dw = 0, dh = 0; SDL_GL_GetDrawableSize(wnd, &dw, &dh); if (dw > 0 && dh > 0) { g_sdlWinW = dw; g_sdlWinH = dh; } }
     int w, h;
     SDL_GetWindowSize(wnd, &w, &h);
     if (width) *width = w;

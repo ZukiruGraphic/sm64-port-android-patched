@@ -17,7 +17,7 @@ static bool audio_sdl_init(void) {
     want.freq = 32000;
     want.format = AUDIO_S16SYS;
     want.channels = 2;
-    want.samples = 512;
+    want.samples = 1024;
     want.callback = NULL;
     dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
     if (dev == 0) {
@@ -33,7 +33,7 @@ static int audio_sdl_buffered(void) {
 }
 
 static int audio_sdl_get_desired_buffered(void) {
-    return 1100;
+    return 2048;
 }
 
 static void audio_sdl_play(const uint8_t *buf, size_t len) {

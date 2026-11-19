@@ -169,10 +169,10 @@ void imgui_menu_frame() {
             ImGui::Text("Resolution");
             ImGui::SetNextItemWidth(-1);
             static float s_resScale = -1.0f; if (s_resScale < 0) { extern unsigned int g_resolutionScale; s_resScale = (float)g_resolutionScale; } // SYNC: slider ngikutin yang ke-save, bukan selalu 100
-            if (ImGui::SliderFloat("Resolution Scale", &s_resScale, 50.0f, 100.0f, "%.0f%%")) {
+            if (ImGui::SliderFloat("Resolution Scale", &s_resScale, 10.0f, 100.0f, "%.0f%%")) {
                 // Step 5% - bulatin ke kelipatan 5
                 s_resScale = (float)((int)(s_resScale / 5.0f + 0.5f) * 5);
-                if (s_resScale < 50.0f) s_resScale = 50.0f;
+                if (s_resScale < 10.0f) s_resScale = 10.0f;
                 if (s_resScale > 100.0f) s_resScale = 100.0f;
                 // 100% = resolusi layar penuh, turun 5% = render lebih kecil, di-upscale ke layar
                 extern unsigned int g_resolutionScale; g_resolutionScale = (int)s_resScale;
@@ -181,6 +181,8 @@ void imgui_menu_frame() {
             }
             ImGui::Separator();
             if (ImGui::Checkbox("VSync", &configWindow.vsync)) { configWindow.settings_changed = true; configfile_save(configfile_name()); } // Auto-save!
+            ImGui::Text("Scaling Filtering");
+            { const char* scalingFilters[] = { "Linear", "Nearest" }; int tmpScaling = (int)configScalingFiltering; if (ImGui::Combo("##scaling_filter", &tmpScaling, scalingFilters, 2)) { configScalingFiltering = (unsigned int)tmpScaling; configfile_save(configfile_name()); } }
             ImGui::Text("Texture Filtering");
             const char *filters[] = { "Nearest", "Linear" };
             int tmpFilter = (int)configFiltering;

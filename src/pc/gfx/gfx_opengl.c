@@ -1,3 +1,4 @@
+#include <math.h>
 #ifdef RAPI_GL
 
 #include <stdint.h>
@@ -543,7 +544,7 @@ static uint32_t gfx_cm_to_opengl(uint32_t val) {
 }
 
 static void gfx_opengl_set_sampler_parameters(int tile, bool linear_filter, uint32_t cms, uint32_t cmt) {
-    const GLenum filter = linear_filter ? GL_LINEAR : GL_NEAREST;
+    const GLenum filter = linear_filter ? GL_LINEAR : GL_LINEAR;
     glActiveTexture(GL_TEXTURE0 + tile);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
@@ -646,19 +647,21 @@ static void gfx_opengl_init(void) {
 static void gfx_opengl_on_resize(void) {
 }
 
+int g_inResFBO = 0;
 static GLuint s_resFBO = 0, s_resTex = 0, s_resDepth = 0;
 static int s_resW = 0, s_resH = 0, s_resScaleLast = 100;
+static int s_scalingFilterLast = 0;
 static int s_winW = 1280, s_winH = 720;
 static GLuint s_blitProg = 0, s_blitVBO = 0;
 static void res_create_fbo(int w, int h) {
     if (s_resFBO) { glDeleteFramebuffers(1, &s_resFBO); glDeleteTextures(1, &s_resTex); glDeleteRenderbuffers(1, &s_resDepth); s_resFBO = 0; }
     s_resW = w; s_resH = h;
     glGenFramebuffers(1, &s_resFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, s_resFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, s_resFBO); g_inResFBO = 1;
     glGenTextures(1, &s_resTex);
     glBindTexture(GL_TEXTURE_2D, s_resTex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (configScalingFiltering == 1 ? GL_NEAREST : GL_LINEAR));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (configScalingFiltering == 1 ? GL_NEAREST : GL_LINEAR)); // NEAREST biar kotak-kotak, kerasa burik-nya, bukan blur halus
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -667,7 +670,7 @@ static void res_create_fbo(int w, int h) {
     glBindRenderbuffer(GL_RENDERBUFFER, s_resDepth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, w, h);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, s_resDepth);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); g_inResFBO = 0;
 }
 static void res_blit(void) {
     // SAVE state game - biar gak ngerusak frame berikutnya
@@ -693,6 +696,8 @@ static void res_blit(void) {
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, s_winW, s_winH);
+    g_inResFBO = 0;
+    glViewport(0, 0, s_winW, s_winH);
     glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST); glDisable(GL_BLEND);
     glUseProgram(s_blitProg);
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s_resTex);
@@ -708,7 +713,7 @@ static void res_blit(void) {
     glUseProgram(oldProg);
     glBindBuffer(GL_ARRAY_BUFFER, oldVBO);
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, oldTex);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // JANGAN balik ke FBO, ImGui render ke layar!
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); g_inResFBO = 0; // JANGAN balik ke FBO, ImGui render ke layar!
     glViewport(0, 0, s_winW, s_winH); // Viewport balik ke layar penuh, bukan ke FBO kecil
     if (oldDepth) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
     if (oldBlend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
@@ -716,7 +721,7 @@ static void res_blit(void) {
 }
 static void gfx_opengl_start_frame(void) {
     frame_count++;
-    { extern unsigned int g_resolutionScale; int vp[4]; int curFBO = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &curFBO); glGetIntegerv(GL_VIEWPORT, vp); if (curFBO == 0 && vp[2] > 0 && vp[3] > 0) { s_winW = vp[2]; s_winH = vp[3]; } int sc = (int)g_resolutionScale; if (sc < 50) sc = 50; if (sc > 100) sc = 100; if (0 && sc < 100) { int rw = s_winW * sc / 100; int rh = s_winH * sc / 100; if (rw < 8) rw = 8; if (rh < 8) rh = 8; if (!s_resFBO || s_resW != rw || s_resH != rh || s_resScaleLast != sc) { res_create_fbo(rw, rh); s_resScaleLast = sc; } glBindFramebuffer(GL_FRAMEBUFFER, s_resFBO); glViewport(0, 0, rw, rh); } else { if (s_resFBO) { glBindFramebuffer(GL_FRAMEBUFFER, 0); } s_resScaleLast = 100; } }
+    { extern unsigned int g_resolutionScale; extern int g_sdlWinW, g_sdlWinH; if (g_sdlWinW > 0 && g_sdlWinH > 0) { s_winW = g_sdlWinW; s_winH = g_sdlWinH; } int sc = (int)g_resolutionScale; if (sc < 10) sc = 10; if (sc > 100) sc = 100; if (sc < 100) { int capped = sc; float eff_f; if (sc >= 100) { eff_f = 100; } else { eff_f = 100.0f * powf(0.005f, (100.0f - (float)capped) / 90.0f); if (eff_f < 0.5f) eff_f = 0.5f; } int eff = (int)eff_f; int rw = (int)(s_winW * eff_f / 100.0f); int rh = (int)(s_winH * eff_f / 100.0f); if (rw < 1) rw = 1; if (rh < 1) rh = 1; if (!s_resFBO || abs(s_resW - rw) > 0 || abs(s_resH - rh) > 0 || s_resScaleLast != eff || s_scalingFilterLast != (int)configScalingFiltering) { res_create_fbo(rw, rh); s_resScaleLast = eff; s_scalingFilterLast = (int)configScalingFiltering; } glBindFramebuffer(GL_FRAMEBUFFER, s_resFBO); g_inResFBO = 1; glViewport(0, 0, rw, rh); } else { if (s_resFBO) { glBindFramebuffer(GL_FRAMEBUFFER, 0); g_inResFBO = 0; } s_resScaleLast = 100; glViewport(0,0,s_winW,s_winH); } }
 
     glDisable(GL_SCISSOR_TEST);
     glDepthMask(GL_TRUE); // Must be set to clear Z-buffer
@@ -725,7 +730,7 @@ static void gfx_opengl_start_frame(void) {
     glEnable(GL_SCISSOR_TEST);
 }
 
-static void gfx_opengl_end_frame(void) { { extern unsigned int g_resolutionScale; if (0 && (int)g_resolutionScale < 100 && s_resFBO) { res_blit(); } } }
+static void gfx_opengl_end_frame(void) { { extern unsigned int g_resolutionScale; if ((int)g_resolutionScale < 100 && s_resFBO) { res_blit(); } } }
 
 static void gfx_opengl_finish_render(void) {
 }

@@ -135,7 +135,7 @@ static bool audio_sdl_init(void) {
     want.freq = 32000;
     want.format = AUDIO_S16SYS;
     want.channels = 2;
-    want.samples = 512;
+    want.samples = 4096;
     want.callback = audio_drain;
     if (SDL_OpenAudio(&want, &have) == -1) {
         fprintf(stderr, "SDL_OpenAudio error: %s\n", SDL_GetError());

@@ -52,6 +52,7 @@ ConfigWindow configWindow       = {
     .settings_changed = false,
 };
 unsigned int configFiltering    = 1;          // 0=force nearest, 1=linear, (TODO) 2=three-point
+unsigned int configScalingFiltering = 0; // 0=Linear, 1=Nearest
 unsigned int configMasterVolume = MAX_VOLUME; // 0 - MAX_VOLUME
 unsigned int configMusicVolume = MAX_VOLUME;
 unsigned int configSfxVolume = MAX_VOLUME;
@@ -113,6 +114,7 @@ static const struct ConfigOption options[] = {
     {.name = "resolution_scale", .type = CONFIG_TYPE_UINT, .uintValue = &g_resolutionScale},
     {.name = "vsync",                .type = CONFIG_TYPE_BOOL, .boolValue = &configWindow.vsync},
     {.name = "texture_filtering",    .type = CONFIG_TYPE_UINT, .uintValue = &configFiltering},
+    {.name = "scaling_filtering",    .type = CONFIG_TYPE_UINT, .uintValue = &configScalingFiltering},
     {.name = "analog_sens", .type = CONFIG_TYPE_FLOAT, .floatValue = &configAnalogSens},
     {.name = "invert_y", .type = CONFIG_TYPE_BOOL, .boolValue = &configInvertY},
     {.name = "sens_h",               .type = CONFIG_TYPE_FLOAT, .floatValue = &configSensH},
