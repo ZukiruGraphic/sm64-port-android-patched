@@ -19,6 +19,7 @@ typedef struct {
 
 extern ConfigWindow configWindow;
 extern unsigned int configFiltering;
+extern unsigned int configScalingFiltering;
 extern unsigned int configMasterVolume;
 extern unsigned int configMusicVolume;
 extern unsigned int configSfxVolume;
@@ -56,6 +57,8 @@ extern bool         configCameraAnalog;
 #endif
 extern bool         configHUD;
 extern float        configSensH;
+extern float        configAnalogSens;
+extern int          configInvertY;
 extern float        configSensV;
 extern float        configZoom;
 extern bool         configSkipIntro;
