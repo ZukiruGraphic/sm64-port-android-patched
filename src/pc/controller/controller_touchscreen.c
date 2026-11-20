@@ -107,7 +107,7 @@ void touch_motion(struct TouchEvent* event) {
                         if (dx*dx + dy*dy < 60*60) { overlap = 1; break; }
                     }
                     if (overlap) continue;
-                    { FILE *dbg = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/debug_drag.txt", "a"); if (dbg) { fprintf(dbg, "DRAG i=%d nx=%d ny=%d edit=%d\n", i, nx, ny, g_editButtonMode); fclose(dbg); } }
+                    /* debug_drag disabled */
                     customPos[i].x = nx;
                     { FILE *bf = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/btn_pos.txt", "w"); if (bf) { for (int k = 0; k < 13; k++) if (hasCustom[k]) fprintf(bf, "btn_pos_%d %d %d\n", k, customPos[k].x, customPos[k].y); fclose(bf); } }
                     customPos[i].y = ny;
@@ -168,7 +168,7 @@ static void handle_touch_up(int i) {//seperated for when the layout changes
     }
 }
 
-void touch_up(struct TouchEvent* event) { { FILE *dbg = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/debug_drag.txt", "a"); if (dbg) { fprintf(dbg, "UP called edit=%d\n", g_editButtonMode); fclose(dbg); } } if (g_editButtonMode) { extern void configfile_save(const char *); extern const char *configfile_name(void); configfile_save(configfile_name()); }
+void touch_up(struct TouchEvent* event) { /* debug_drag disabled */ if (g_editButtonMode) { extern void configfile_save(const char *); extern const char *configfile_name(void); configfile_save(configfile_name()); }
     struct Position pos;
     for(int i = 0; i < ControlElementsLength; i++) {
         if (ControlElements[i].touchID == event->touchID) {

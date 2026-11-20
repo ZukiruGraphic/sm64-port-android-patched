@@ -331,7 +331,7 @@ void configfile_load(const char *filename) {
 
     extern int hasCustom[];
     extern struct Position customPos[];
-    { FILE *dbg = fopen("/sdcard/Android/data/com.vdavid003.sm64port/files/user/debug_drag.txt", "a"); if (dbg) { extern int hasCustom[]; fprintf(dbg, "SAVE hasCustom0=%d hasCustom1=%d hasCustom2=%d\n", hasCustom[0], hasCustom[1], hasCustom[2]); fclose(dbg); } }
+    /* debug_drag disabled */
     for (int i = 0; i < 13; i++) { extern struct Position customPos[]; extern int hasCustom[]; if (hasCustom[i]) fprintf(file, "btn_pos_%d %d %d\n", i, customPos[i].x, customPos[i].y); }
     fclose(file);
 }
