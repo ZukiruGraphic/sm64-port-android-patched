@@ -2713,7 +2713,9 @@ void move_into_c_up(struct Camera *c) {
     c->focus[2] = start->focus[2] + (end->focus[2] - start->focus[2]) * sModeInfo.frame / sModeInfo.max;
 
     vec3f_add(c->focus, sMarioCamState->pos);
-    vec3f_set_dist_and_angle(c->focus, c->pos, dist, pitch, yaw);
+    if (dist < 180.0f) dist = 180.0f;
+            vec3f_set_dist_and_angle(c->focus, c->pos, dist, pitch, yaw);
+            { Vec3f _cp; vec3f_copy(_cp, c->pos); collide_with_walls(c->pos, 10.0f, 140.0f); if (c->pos[0] == _cp[0] && c->pos[1] == _cp[1] && c->pos[2] == _cp[2]) { /* udah di luar dinding */ } }
 
     sMarioCamState->headRotation[0] = 0;
     sMarioCamState->headRotation[1] = 0;
@@ -3354,7 +3356,7 @@ void update_camera(struct Camera *c) {
             if (g_camDragYaw != 0) { g_sCustomYaw += (int)(g_camDragYaw * 3.0f); g_camDragYaw = 0; } // *0.01, biar gak langsung mentok!
             if (g_camDragPitch != 0) { g_sCustomPitch += (int)(g_camDragPitch * 3.0f); g_camDragPitch = 0; } // *0.01, dari 0.1f kegedean 10x!
             if (g_sCustomPitch > 12000) g_sCustomPitch = 12000; // 66 derajat, aman, gak invert! // 30k, aman s16, biar gak invert pas mentok!
-            if (g_sCustomPitch < -12000) g_sCustomPitch = -12000;
+            if (g_sCustomPitch < -14500) g_sCustomPitch = -14500;
             // Fokus = Mario (tengah), tapi yaw/pitch = CUSTOM ABSOLUT, bukan hadep Mario!
             vec3f_copy(c->focus, sMarioCamState->pos);
             c->focus[1] += 125.0f;
@@ -3366,7 +3368,27 @@ void update_camera(struct Camera *c) {
             if (g_sCustomInit == 0) { g_sCustomYaw = (s16)(sMarioCamState->faceAngle[1] + 0x8000); g_sCustomPitch = 0x2000; g_sCustomInit = 1; } // Abis SKIP: belakang Mario, bukan muka Peach!
             yaw = g_sCustomYaw;
             pitch = g_sCustomPitch;
-            dist = gCameraZoomDist;
+            dist = gCameraZoomDist; // jarak user, JANGAN ditimpa
+            // COLLISION VANILLA + CEK JALUR: collide_with_walls bawaan, tapi tiap 20 unit sepanjang Mario -> kamera, bukan cuma ujung
+            {
+                static f32 sCamEffDist = -1.0f;
+                if (sCamEffDist < 0) sCamEffDist = dist;
+                f32 wantDist = dist;
+                Vec3f _rayOrig; vec3f_copy(_rayOrig, sMarioCamState->pos); _rayOrig[1] += 125.0f;
+                for (f32 d = 20.0f; d <= dist; d += 20.0f) {
+                    Vec3f tp; vec3f_set_dist_and_angle(_rayOrig, tp, d, pitch, yaw);
+                    Vec3f _before; vec3f_copy(_before, tp);
+                    collide_with_walls(tp, 10.0f, 40.0f);
+                    int _hit = 0;
+                    int _wallHit = 0; if (tp[0] != _before[0] || tp[1] != _before[1] || tp[2] != _before[2]) { _hit = 1; _wallHit = 1; }
+                    { struct Surface *_f = NULL; f32 _fl = find_floor(tp[0], tp[1] + 100.0f, tp[2], &_f); if (_fl != -11000.0f && tp[1] < _fl - 130.0f) _hit = 1; }
+                    { struct Surface *_c = NULL; f32 _ce = find_ceil(tp[0], tp[1] - 100.0f, tp[2], &_c); if (_ce != -11000.0f && tp[1] > _ce - 35.0f) _hit = 1; }
+                    if (_wallHit) { wantDist = d - 40.0f; if (wantDist < 180.0f) wantDist = 180.0f; break; } if (_hit) { wantDist = d - 20.0f; if (wantDist < 80.0f) wantDist = 80.0f; break; }
+                }
+                if (wantDist < sCamEffDist) sCamEffDist = wantDist;
+                else { sCamEffDist += (wantDist - sCamEffDist) * 0.12f; if (sCamEffDist > wantDist) sCamEffDist = wantDist; }
+                dist = sCamEffDist;
+            }
             vec3f_set_dist_and_angle(c->focus, c->pos, dist, pitch, yaw);
             vec3f_copy(gLakituState.pos, c->pos);
             vec3f_copy(gLakituState.goalPos, c->pos);

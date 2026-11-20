@@ -1,3 +1,4 @@
+#include <string>
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
@@ -5,6 +6,16 @@
 extern "C" {
 #include "pc/configfile.h"
 #include "pc/cheats.h"
+static bool g_showShaderWindow = false;
+extern char g_shaderNames[32][64];
+extern int g_shaderCount;
+extern int g_shaderEnabled[32];
+extern int g_shaderActive;
+extern char g_shaderFs[32][16384];
+extern void post_shader_reload(void);
+extern void post_shader_scan(void);
+extern const char *sys_exe_path(void);
+extern const char *fs_get_write_path(const char *path);
 // HAPUS SAVESTATE: include dihapus
 }
 
@@ -181,6 +192,7 @@ void imgui_menu_frame() {
             }
             ImGui::Separator();
             if (ImGui::Checkbox("VSync", &configWindow.vsync)) { configWindow.settings_changed = true; configfile_save(configfile_name()); } // Auto-save!
+            if (ImGui::Button("Shaders")) { g_showShaderWindow = true; }
             ImGui::Text("Scaling Filtering");
             { const char* scalingFilters[] = { "Linear", "Nearest" }; int tmpScaling = (int)configScalingFiltering; if (ImGui::Combo("##scaling_filter", &tmpScaling, scalingFilters, 2)) { configScalingFiltering = (unsigned int)tmpScaling; configfile_save(configfile_name()); } }
             ImGui::Text("Texture Filtering");
@@ -190,7 +202,40 @@ void imgui_menu_frame() {
             if (ImGui::Checkbox("HUD", &configHUD)) { configfile_save(configfile_name()); } // Auto-save!
             ImGui::Spacing();
             ImGui::Text("Auto-save: Graphic langsung ke-save, gak pake Apply!");
-        } else if (g_tab == 1) {
+        }
+        // Shader Manager window baru
+        if (g_showShaderWindow) {
+            if (ImGui::Begin("Shaders", &g_showShaderWindow)) {
+                ImGui::Text("Shaders folder: files/shaders/ + files/user/shaders/");
+                if (ImGui::Button("Reload")) { post_shader_reload(); }
+                ImGui::SameLine();
+                if (ImGui::Button("Scan")) { post_shader_scan(); }
+                ImGui::SameLine();
+                if (ImGui::Button("Close")) { g_showShaderWindow = false; }
+                ImGui::Separator();
+                ImGui::Text("List shaders (nama ngikutin nama file):");
+                for (int i = 0; i < g_shaderCount; i++) {
+                    char label[128]; snprintf(label, sizeof(label), "%s##shader%d", g_shaderNames[i], i);
+                    bool en = g_shaderEnabled[i] != 0;
+                    if (ImGui::Checkbox(label, &en)) { g_shaderEnabled[i] = en ? 1 : 0; if (en) g_shaderActive = i; else if (g_shaderActive == i) { g_shaderActive = -1; for (int k = 0; k < g_shaderCount; k++) if (g_shaderEnabled[k]) { g_shaderActive = k; break; } } post_shader_reload(); }
+                    ImGui::SameLine();
+                    if (ImGui::Button(("Up##up"+std::to_string(i)).c_str())) { if (i > 0) { char tmp[64]; snprintf(tmp, sizeof(tmp), "%s", g_shaderNames[i]); snprintf(g_shaderNames[i], 64, "%s", g_shaderNames[i-1]); snprintf(g_shaderNames[i-1], 64, "%s", tmp); int te = g_shaderEnabled[i]; g_shaderEnabled[i] = g_shaderEnabled[i-1]; g_shaderEnabled[i-1] = te; { char tmpFs[16384]; snprintf(tmpFs, sizeof(tmpFs), "%s", g_shaderFs[i]); snprintf(g_shaderFs[i], sizeof(g_shaderFs[i]), "%s", g_shaderFs[i-1]); snprintf(g_shaderFs[i-1], sizeof(g_shaderFs[i-1]), "%s", tmpFs); } if (g_shaderActive == i) g_shaderActive = i-1; else if (g_shaderActive == i-1) g_shaderActive = i; } post_shader_reload(); }
+                    ImGui::SameLine();
+                    if (ImGui::Button(("Down##down"+std::to_string(i)).c_str())) { if (i < g_shaderCount - 1) { char tmp[64]; snprintf(tmp, sizeof(tmp), "%s", g_shaderNames[i]); snprintf(g_shaderNames[i], 64, "%s", g_shaderNames[i+1]); snprintf(g_shaderNames[i+1], 64, "%s", tmp); int te = g_shaderEnabled[i]; g_shaderEnabled[i] = g_shaderEnabled[i+1]; g_shaderEnabled[i+1] = te; { char tmpFs[16384]; snprintf(tmpFs, sizeof(tmpFs), "%s", g_shaderFs[i]); snprintf(g_shaderFs[i], sizeof(g_shaderFs[i]), "%s", g_shaderFs[i+1]); snprintf(g_shaderFs[i+1], sizeof(g_shaderFs[i+1]), "%s", tmpFs); } if (g_shaderActive == i) g_shaderActive = i+1; else if (g_shaderActive == i+1) g_shaderActive = i; } post_shader_reload(); }
+                    ImGui::SameLine();
+                    { char delLabel[64]; snprintf(delLabel, sizeof(delLabel), "\xF0\x9F\x97\x91##del%d", i); if (ImGui::Button(delLabel)) { char dp1[1024]; snprintf(dp1, sizeof(dp1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[i]); remove(dp1); char dp2[1024]; snprintf(dp2, sizeof(dp2), "%s", fs_get_write_path("shaders")); char fulld[1024]; snprintf(fulld, sizeof(fulld), "%s/%s", dp2, g_shaderNames[i]); remove(fulld); if (g_shaderActive == i) g_shaderActive = -1; post_shader_scan(); post_shader_reload(); } }
+                }
+                ImGui::Separator();
+                ImGui::Text("Add new shader:");
+                static char newName[64] = {0};
+                ImGui::InputText("##newshader", newName, sizeof(newName));
+                ImGui::SameLine();
+                if (ImGui::Button("Add")) { if (newName[0]) { char path[1024]; snprintf(path, sizeof(path), "%s/shaders/%s.glsl", sys_exe_path(), newName); FILE *w = fopen(path, "w"); if (w) { const char *def = "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\nuniform vec2 uResolution;\nuniform vec2 uTexelSize;\nuniform sampler2D uLowTex;\nuniform sampler2D uPrevLowTex0;\nuniform sampler2D uPrevLowTex1;\nvoid main() {\n  vec4 c = texture2D(uTex, vUV);\n  // uResolution = resolusi layar, uTexelSize = 1.0/uResolution (buat AA/sharpen)\n  // uLowTex = frame low-res 6x3 (buat bloom murah)\n  // uPrevLowTex0 = low-res 1 frame lalu, uPrevLowTex1 = 2 frame lalu (buat ghost/motionblur)\n  // contoh bloom: vec3 bloom = texture2D(uLowTex, vUV).rgb;\n  gl_FragColor = c;\n}\n"; fputs(def, w); fclose(w); } newName[0] = 0; post_shader_scan(); } }
+                ImGui::Text("Edit file-nya di ZArchiver, terus Reload, gak perlu relog.");
+            }
+            ImGui::End();
+        }
+        if (g_tab == 1) {
             ImGui::Text("Audio - sama kayak AUDIO bawaan game");
             ImGui::Separator();
             int tmpMaster = (int)configMasterVolume;
