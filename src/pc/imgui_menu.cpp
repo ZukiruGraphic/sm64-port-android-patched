@@ -1,4 +1,6 @@
 #include <string>
+#include "ic_delete_rgba.h"
+#include <GLES2/gl2.h>
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
@@ -217,7 +219,21 @@ void imgui_menu_frame() {
                 ImGui::SameLine();
                 if (ImGui::Button("Scan")) { post_shader_scan(); }
                 ImGui::SameLine();
-                if (ImGui::Button("Close")) { g_showShaderWindow = false; }
+                if (ImGui::Button("Add Main Shaders")) {
+                    struct MainSh { const char *name; const char *src; };
+                    static const MainSh mains[] = {
+                        { "Bloom.glsl", "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\nuniform sampler2D uLowTex;\nuniform sampler2D uPrevLowTex0;\nuniform sampler2D uPrevLowTex1;\n\nvoid main() {\n  vec4 base = texture2D(uTex, vUV);\n\n  vec4 bloomNow = texture2D(uLowTex, vUV);\n  vec4 bloomPrev0 = texture2D(uPrevLowTex0, vUV);\n  vec4 bloomPrev1 = texture2D(uPrevLowTex1, vUV);\n  float ghost = 0.5;\n  vec4 bloom = mix(bloomNow, bloomPrev0, ghost);\n  bloom = mix(bloom, bloomPrev1, ghost);\n\n  float b = pow(max(max(bloom.r, bloom.g), bloom.b), 5.0);\n  \n  base = pow(base, vec4(2.2));\n  base = mix(base, base * 0.6 + bloom * b, 0.35);\n  base *= 0.85;\n  base = pow(base, vec4(1.0/2.2));\n  \n  gl_FragColor = base;\n}" },
+                        { "CAS.glsl", "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\nuniform vec2 uTexelSize;\nconst float u_sharpness = 8.0;\n\nvoid main() {\n    vec2 p = uTexelSize * 2.0;\n\n    vec3 c = texture2D(uTex, vUV).rgb;\n\n    vec3 up    = texture2D(uTex, vUV + vec2(0.0, -p.y)).rgb;\n    vec3 down  = texture2D(uTex, vUV + vec2(0.0,  p.y)).rgb;\n    vec3 left  = texture2D(uTex, vUV + vec2(-p.x, 0.0)).rgb;\n    vec3 right = texture2D(uTex, vUV + vec2( p.x, 0.0)).rgb;\n\n    vec3 a = texture2D(uTex, vUV + vec2(-p.x, -p.y)).rgb;\n    vec3 b = texture2D(uTex, vUV + vec2( p.x, -p.y)).rgb;\n    vec3 d = texture2D(uTex, vUV + vec2(-p.x,  p.y)).rgb;\n    vec3 e = texture2D(uTex, vUV + vec2( p.x,  p.y)).rgb;\n\n    vec3 avg = (up + down + left + right) * 0.25;\n    vec3 diff = c - avg;\n\n    vec3 mn = min(min(min(a, b), min(d, e)), c);\n    vec3 mx = max(max(max(a, b), max(d, e)), c);\n    vec3 range = mx - mn;\n    mn -= range * 0.2;\n    mx += range * 0.2;\n\n    vec3 result = c + diff * u_sharpness;\n    result = mix(result, clamp(result, mn, mx), 1.0);\n    result = clamp(result, 0.0, 1.0);\n\n    gl_FragColor = vec4(result, 1.0);\n}" },
+                        { "CRT.glsl", "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\nuniform vec2 uResolution;\n\nvoid main() {\n  vec2 cc = vUV - 0.5;\n  float r2 = dot(cc, cc);\n  vec2 uv = vUV + cc * r2 * 0.08;\n  \n  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {\n    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n    return;\n  }\n\n  vec4 c = texture2D(uTex, uv);\n\n  float scan = 0.85 + 0.15 * sin(uv.y * uResolution.y * 3.14159);\n  c.rgb *= scan;\n\n  float grille = 0.92 + 0.08 * sin(uv.x * uResolution.x * 3.14159);\n  c.rgb *= grille;\n\n  vec2 vc = uv - 0.5;\n  vc.x *= uResolution.x / uResolution.y;\n  float vig = smoothstep(1.15, 0.65, length(vc));\n  c.rgb *= mix(1.0, vig, 0.55);\n\n  c.rgb = pow(c.rgb, vec3(1.15));\n\n  gl_FragColor = c;\n}" },
+                        { "FXAA.glsl", "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\nuniform vec2 uTexelSize;\n\nvoid main() {\n  vec4 c = texture2D(uTex, vUV);\n  vec4 n = texture2D(uTex, vUV + vec2(0.0, uTexelSize.y));\n  vec4 s = texture2D(uTex, vUV - vec2(0.0, uTexelSize.y));\n  vec4 e = texture2D(uTex, vUV + vec2(uTexelSize.x, 0.0));\n  vec4 w = texture2D(uTex, vUV - vec2(uTexelSize.x, 0.0));\n  \n  vec4 ne = texture2D(uTex, vUV + uTexelSize);\n  vec4 sw = texture2D(uTex, vUV - uTexelSize);\n\n  float lum = (c.r + c.g + c.b) * 0.3333;\n  float lumN = (n.r + n.g + n.b) * 0.3333;\n  float lumS = (s.r + s.g + s.b) * 0.3333;\n  float edge = abs(lumN - lum) + abs(lumS - lum);\n\n  float mixAmt = clamp(edge * 6.0, 0.0, 0.8);\n  vec4 avg = (n + s + e + w + ne + sw) * 0.1666;\n  \n  gl_FragColor = mix(c, avg, mixAmt);\n}" },
+                        { "HDR.glsl", "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\nuniform vec2 uResolution;\nuniform vec2 uTexelSize;\n\nvoid main() {\n  vec4 c = texture2D(uTex, vUV);\n  vec3 col = c.rgb;\n  col *= 0.98;\n \n  float lum = dot(col, vec3(0.299, 0.587, 0.114));\n\n  float shadowW = 1.0 - smoothstep(0.0, 0.6, lum);\n  float highlightW = smoothstep(0.25, 0.85, lum);\n  float mask = max(shadowW, highlightW);\n\n  float reinhardLum = lum / (1.0 + lum * 0.35) * 1.35;\n  reinhardLum = reinhardLum * 0.95 + 0.02 * shadowW;\n\n  float newLum = mix(lum, reinhardLum, mask * 1.0);\n\n  float ratio = newLum / max(lum, 0.0001);\n \n  col *= ratio;\n  col = pow(col, vec3(1.05));\n\n  gl_FragColor = vec4(col, 1.0);\n}" },
+                        { "Vignette.glsl", "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\nuniform vec2 uResolution;\n\nvoid main() {\n  vec4 c = texture2D(uTex, vUV);\n\n  vec2 uv = vUV - 0.5;\n  uv.x *= uResolution.x / uResolution.y;\n  float dist = length(uv);\n  \n  float vig = smoothstep(1.5, 0.2, dist);\n  vig = clamp(mix(1.0, vig, 0.5), 0.0, 1.0);\n\n  c.rgb *= vig;\n  \n  gl_FragColor = c;\n}\n" },
+                    };
+                    for (int mi = 0; mi < (int)(sizeof(mains)/sizeof(mains[0])); mi++) { char mp[1024]; snprintf(mp, sizeof(mp), "%s/shaders/%s", sys_exe_path(), mains[mi].name); FILE *wf = fopen(mp, "w"); if (wf) { fputs(mains[mi].src, wf); fclose(wf); } }
+                    post_shader_scan(); post_shader_reload();
+                }
+                ImGui::SameLine();
+if (ImGui::Button("Close")) { g_showShaderWindow = false; }
                 ImGui::Separator();
                 ImGui::Text("List shaders (nama ngikutin nama file):");
                 for (int i = 0; i < g_shaderCount; i++) {
@@ -229,7 +245,14 @@ void imgui_menu_frame() {
                     ImGui::SameLine();
                     if (ImGui::Button(("Down##down"+std::to_string(i)).c_str())) { if (i < g_shaderCount - 1) { char tmp[64]; snprintf(tmp, sizeof(tmp), "%s", g_shaderNames[i]); snprintf(g_shaderNames[i], 64, "%s", g_shaderNames[i+1]); snprintf(g_shaderNames[i+1], 64, "%s", tmp); int te = g_shaderEnabled[i]; g_shaderEnabled[i] = g_shaderEnabled[i+1]; g_shaderEnabled[i+1] = te; { char tmpFs[16384]; snprintf(tmpFs, sizeof(tmpFs), "%s", g_shaderFs[i]); snprintf(g_shaderFs[i], sizeof(g_shaderFs[i]), "%s", g_shaderFs[i+1]); snprintf(g_shaderFs[i+1], sizeof(g_shaderFs[i+1]), "%s", tmpFs); } if (g_shaderActive == i) g_shaderActive = i+1; else if (g_shaderActive == i+1) g_shaderActive = i; } post_shader_reload(); }
                     ImGui::SameLine();
-                    { char delLabel[64]; snprintf(delLabel, sizeof(delLabel), "\xF0\x9F\x97\x91##del%d", i); if (ImGui::Button(delLabel)) { char dp1[1024]; snprintf(dp1, sizeof(dp1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[i]); remove(dp1); char dp2[1024]; snprintf(dp2, sizeof(dp2), "%s", fs_get_write_path("shaders")); char fulld[1024]; snprintf(fulld, sizeof(fulld), "%s/%s", dp2, g_shaderNames[i]); remove(fulld); if (g_shaderActive == i) g_shaderActive = -1; post_shader_scan(); post_shader_reload(); } }
+                    { char delLabel[64]; snprintf(delLabel, sizeof(delLabel), "\xF0\x9F\x97\x91##del%d", i); if ([&]() {
+                        static unsigned int s_delTex = 0;
+                        if (!s_delTex) {
+                            glGenTextures(1, &s_delTex); glBindTexture(GL_TEXTURE_2D, s_delTex); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ic_delete_w, ic_delete_h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ic_delete_rgba);
+                        }
+                        if (s_delTex) return ImGui::ImageButton(delLabel, ImTextureRef((ImTextureID)(intptr_t)s_delTex), ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
+                        return ImGui::Button(delLabel);
+                    }()) { char dp1[1024]; snprintf(dp1, sizeof(dp1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[i]); remove(dp1); char dp2[1024]; snprintf(dp2, sizeof(dp2), "%s", fs_get_write_path("shaders")); char fulld[1024]; snprintf(fulld, sizeof(fulld), "%s/%s", dp2, g_shaderNames[i]); remove(fulld); if (g_shaderActive == i) g_shaderActive = -1; post_shader_scan(); post_shader_reload(); } }
                 }
                 ImGui::Separator();
                 ImGui::Text("Add new shader:");
