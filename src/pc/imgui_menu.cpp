@@ -214,7 +214,7 @@ void imgui_menu_frame() {
         // Shader Manager window baru
         if (g_showShaderWindow) {
             if (ImGui::Begin("Shaders", &g_showShaderWindow)) {
-                ImGui::Text("Shaders folder: files/shaders/ + files/user/shaders/");
+                ImGui::Text("Shaders folder: files/shaders/");
                 if (ImGui::Button("Reload")) { post_shader_reload(); }
                 ImGui::SameLine();
                 if (ImGui::Button("Scan")) { post_shader_scan(); }
@@ -252,7 +252,7 @@ if (ImGui::Button("Close")) { g_showShaderWindow = false; }
                         }
                         if (s_delTex) return ImGui::ImageButton(delLabel, ImTextureRef((ImTextureID)(intptr_t)s_delTex), ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
                         return ImGui::Button(delLabel);
-                    }()) { char dp1[1024]; snprintf(dp1, sizeof(dp1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[i]); remove(dp1); char dp2[1024]; snprintf(dp2, sizeof(dp2), "%s", fs_get_write_path("shaders")); char fulld[1024]; snprintf(fulld, sizeof(fulld), "%s/%s", dp2, g_shaderNames[i]); remove(fulld); if (g_shaderActive == i) g_shaderActive = -1; post_shader_scan(); post_shader_reload(); } }
+                    }()) { char dp1[1024]; snprintf(dp1, sizeof(dp1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[i]); remove(dp1); if (g_shaderActive == i) g_shaderActive = -1; post_shader_scan(); post_shader_reload(); } }
                 }
                 ImGui::Separator();
                 ImGui::Text("Add new shader:");

@@ -699,9 +699,9 @@ void post_shader_scan(void) {
         // simpan oldNames ke static biar scan di bawah tau mana yg baru
         // (scan di bawah cuma nambah yg belum ada, jadi urutan lama aman)
     }
-    // scan 2 folder: files/shaders + files/user/shaders, pake opendir
-    const char *dirs[2]; char d1[1024]; snprintf(d1, sizeof(d1), "%s/shaders", sys_exe_path()); char d2[1024]; snprintf(d2, sizeof(d2), "%s", fs_get_write_path("shaders")); dirs[0] = d1; dirs[1] = d2;
-    for (int di = 0; di < 2; di++) {
+    // scan 1 folder doang: files/shaders (user/shaders udah gak kepake, jangan dibikin lagi)
+    const char *dirs[1]; char d1[1024]; snprintf(d1, sizeof(d1), "%s/shaders", sys_exe_path()); dirs[0] = d1;
+    for (int di = 0; di < 1; di++) {
         DIR *dir = opendir(dirs[di]); if (!dir) continue;
         struct dirent *e; while ((e = readdir(dir)) != NULL) {
             const char *n = e->d_name; size_t len = strlen(n); if (len < 6) continue; if (strcmp(n + len - 5, ".glsl") != 0) continue;
@@ -715,11 +715,9 @@ void post_shader_scan(void) {
     {
         for (int i = 0; i < g_shaderCount; ) {
             char pp1[1024]; snprintf(pp1, sizeof(pp1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[i]);
-            char pp2base[1024]; snprintf(pp2base, sizeof(pp2base), "%s", fs_get_write_path("shaders"));
-            char pp2[1024]; snprintf(pp2, sizeof(pp2), "%s/%s", pp2base, g_shaderNames[i]);
-            FILE *f1 = fopen(pp1, "r"); FILE *f2 = f1 ? NULL : fopen(pp2, "r");
-            int ada = (f1 != NULL || f2 != NULL);
-            if (f1) fclose(f1); if (f2) fclose(f2);
+            FILE *f1 = fopen(pp1, "r");
+            int ada = (f1 != NULL);
+            if (f1) fclose(f1);
             if (!ada) {
                 for (int k = i; k + 1 < g_shaderCount; k++) {
                     snprintf(g_shaderNames[k], 64, "%s", g_shaderNames[k+1]);
@@ -743,9 +741,8 @@ void post_shader_reload(void) {
     // load SEMUA shader yang enabled, urutan = urutan list (atas=belakang, bawah=depan)
     for (int si = 0; si < g_shaderCount; si++) if (g_shaderEnabled[si]) {
         char path1[1024]; snprintf(path1, sizeof(path1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[si]);
-        char path2[1024]; snprintf(path2, sizeof(path2), "%s", fs_get_write_path("shaders")); char full2[1024]; snprintf(full2, sizeof(full2), "%s/%s", path2, g_shaderNames[si]);
-        const char *tryP2[2]; tryP2[0] = path1; tryP2[1] = full2;
-        for (int ii = 0; ii < 2; ii++) { FILE *ff2 = fopen(tryP2[ii], "r"); if (!ff2) continue; size_t nn = fread(g_shaderFs[si], 1, sizeof(g_shaderFs[si])-1, ff2); fclose(ff2); g_shaderFs[si][nn] = 0; if (strstr(g_shaderFs[si], "void main") && strstr(g_shaderFs[si], "precision") && strstr(g_shaderFs[si], "vUV")) { printf("post shader reloaded multi: %s\n", tryP2[ii]); break; } else { g_shaderFs[si][0] = 0; } }
+        const char *tryP2[1]; tryP2[0] = path1;
+        for (int ii = 0; ii < 1; ii++) { FILE *ff2 = fopen(tryP2[ii], "r"); if (!ff2) continue; size_t nn = fread(g_shaderFs[si], 1, sizeof(g_shaderFs[si])-1, ff2); fclose(ff2); g_shaderFs[si][nn] = 0; if (strstr(g_shaderFs[si], "void main") && strstr(g_shaderFs[si], "precision") && strstr(g_shaderFs[si], "vUV")) { printf("post shader reloaded multi: %s\n", tryP2[ii]); break; } else { g_shaderFs[si][0] = 0; } }
     }
     // kompat: g_postFs = shader pertama yang enabled (biar kode lama gak jebol), tapi res_blit pake g_shaderFs
     for (int si = 0; si < g_shaderCount; si++) if (g_shaderEnabled[si] && g_shaderFs[si][0]) { snprintf(g_postFs, sizeof(g_postFs), "%s", g_shaderFs[si]); break; }
@@ -756,8 +753,7 @@ static void post_shader_load_once(void) {
     g_postFsReady = 1;
     g_postFs[0] = 0;
     // cuma bikin folder, JANGAN bikin file shader default lagi - file baru cuma dari tombol Add di ImGui
-    { char d1[1024]; snprintf(d1, sizeof(d1), "%s/shaders", sys_exe_path()); mkdir(d1, 0777);
-      char d2[1024]; snprintf(d2, sizeof(d2), "%s", fs_get_write_path("shaders")); mkdir(d2, 0777); }
+    { char d1[1024]; snprintf(d1, sizeof(d1), "%s/shaders", sys_exe_path()); mkdir(d1, 0777); } // cuma files/shaders, JANGAN bikin user/shaders lagi
     post_shader_scan();
     // JANGAN bikin default.glsl otomatis - shader baru cuma dari tombol Add Main Shaders / Add, manual
     // restore URUTAN dari order.txt dulu (ON+OFF), baru restore toggle dari active.txt
@@ -770,9 +766,8 @@ static void post_shader_load_once(void) {
     // kalo cuma pertama, res_blit ngitung enN dari g_shaderFs -> shader 2+ ke-skip walau toggle nyala
     for (int si = 0; si < g_shaderCount; si++) if (g_shaderEnabled[si]) {
         char q1[1024]; snprintf(q1, sizeof(q1), "%s/shaders/%s", sys_exe_path(), g_shaderNames[si]);
-        char q2b[1024]; snprintf(q2b, sizeof(q2b), "%s", fs_get_write_path("shaders")); char q2[1024]; snprintf(q2, sizeof(q2), "%s/%s", q2b, g_shaderNames[si]);
-        const char *tp[2]; tp[0] = q1; tp[1] = q2;
-        for (int i = 0; i < 2; i++) {
+        const char *tp[1]; tp[0] = q1;
+        for (int i = 0; i < 1; i++) {
             FILE *ff = fopen(tp[i], "r");
             if (!ff) continue;
             size_t n = fread(g_shaderFs[si], 1, sizeof(g_shaderFs[si])-1, ff);
