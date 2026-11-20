@@ -167,6 +167,32 @@ Gfx *geo_switch_anim_state(s32 callContext, struct GraphNode *node) {
 
 //! @bug Same issue as geo_switch_anim_state.
 #ifdef AVOID_UB
+// LOD: 0 = deket (HD), 1 = jauh (low). Dipake di geo.inc.c: GEO_SWITCH_CASE(2, geo_switch_lod)
+s32 geo_switch_lod(s32 callContext, struct GraphNode *node) {
+    if (callContext == GEO_CONTEXT_RENDER) {
+        struct Object *obj = (struct Object *) gCurGraphNodeObject;
+        if (obj != NULL) {
+            if (obj->oDistanceToMario > 1200.0f) return 1;
+        }
+    }
+    return 0;
+}
+
+// Occlusion: 1 = ketutupan tembok, 0 = keliatan. Reuse collide_with_walls kayak di camera.c v3.0
+s32 object_is_occluded_by_wall(Vec3f from, Vec3f to) {
+    f32 dx = to[0] - from[0]; f32 dy = to[1] - from[1]; f32 dz = to[2] - from[2];
+    f32 dist = sqrtf(dx*dx + dy*dy + dz*dz);
+    if (dist < 100.0f) return 0;
+    for (f32 d = 100.0f; d < dist; d += 100.0f) {
+        f32 tt = d / dist;
+        Vec3f tp; tp[0] = from[0] + dx * tt; tp[1] = from[1] + dy * tt; tp[2] = from[2] + dz * tt;
+        Vec3f before; vec3f_copy(before, tp);
+        collide_with_walls(tp, 10.0f, 40.0f);
+        if (tp[0] != before[0] || tp[1] != before[1] || tp[2] != before[2]) return 1;
+    }
+    return 0;
+}
+
 Gfx *geo_switch_area(s32 callContext, struct GraphNode *node, UNUSED void *context) {
 #else
 Gfx *geo_switch_area(s32 callContext, struct GraphNode *node) {

@@ -103,7 +103,7 @@ u8 gDialogCharWidths[256] = { // TODO: Is there a way to auto generate this?
 #endif
 
 s8 gDialogBoxState = DIALOG_STATE_OPENING;
-f32 gDialogBoxOpenTimer = DEFAULT_DIALOG_BOX_ANGLE;
+f32 gDialogBoxOpenTimer = DEFAULT_DIALOG_BOX_ANGLE;;
 f32 gDialogBoxScale = DEFAULT_DIALOG_BOX_SCALE;
 s16 gDialogScrollOffsetY = 0;
 s8 gDialogBoxType = DIALOG_TYPE_ROTATE;

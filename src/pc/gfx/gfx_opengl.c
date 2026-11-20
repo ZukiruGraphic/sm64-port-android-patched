@@ -835,6 +835,20 @@ const char *fs_default = "precision mediump float; varying vec2 vUV; uniform sam
         glGenBuffers(1, &s_blitVBO); glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO); glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, oldVBO);
     }
+    // FIX OFF: hitung dulu, kalo gak ada shader aktif, SKIP total LOWRES + PREV
+    // jangan hapus FBO, cuma skip kerjaannya - biar layar gak jebol kayak patch sebelumnya
+    int enN_early = 0; for (int i = 0; i < g_shaderCount; i++) if (g_shaderEnabled[i] && g_shaderFs[i][0]) enN_early++;
+    // FIX PERFORMA: cuma kerjain pass yang dibutuhin shader, skip deklarasi 'uniform ...;' biar gak ketipu template
+    int needsLow = 0, needsPrev = 0, needsPrevLow = 0;
+    for (int i = 0; i < g_shaderCount; i++) if (g_shaderEnabled[i] && g_shaderFs[i][0]) {
+        // scan per-baris, skip baris yang diawali 'uniform' (itu cuma deklarasi, bukan pemakaian)
+        const char *pp = g_shaderFs[i];
+        while (*pp) { const char *eol = strchr(pp, '\n'); if (!eol) eol = pp + strlen(pp);
+            int isDecl = 0; const char *q = pp; while (q < eol && (*q==' '||*q=='\t')) q++; if (eol-q>=7 && strncmp(q, "uniform", 7)==0) isDecl = 1;
+            if (!isDecl) { if (strstr(pp, "uLowTex") && pp < eol) { /* cek di baris ini aja */ char buf[1024]; int L = eol-pp; if (L>1023) L=1023; memcpy(buf, pp, L); buf[L]=0; if (strstr(buf, "uLowTex")) needsLow = 1; if (strstr(buf, "uPrevTex") && !strstr(buf, "uPrevLowTex")) needsPrev = 1; if (strstr(buf, "uPrevLowTex")) needsPrevLow = 1; } }
+            if (*eol=='\0') break; pp = eol+1; }
+    }
+    if (enN_early > 0 && (needsLow || needsPrev || needsPrevLow)) {
     // LOWRES: 6x3 di 1280x720 = slider 10 -> eff 0.5% (pow curve line 943), buat bloom enteng
     {
         int lw = (int)(s_winW * 0.005f); if (lw < 1) lw = 1;
@@ -901,6 +915,7 @@ const char *fs_default = "precision mediump float; varying vec2 vUV; uniform sam
         glBindFramebuffer(GL_FRAMEBUFFER, oldFBO);
         if (!s_prevProg) { const char *pvs = "attribute vec2 aPos; attribute vec2 aUV; varying vec2 vUV; void main(){ vUV = aUV; gl_Position = vec4(aPos, 0.0, 1.0); }"; const char *pfs = "precision mediump float; varying vec2 vUV; uniform sampler2D uTex; void main(){ gl_FragColor = texture2D(uTex, vUV); }"; GLuint pv = glCreateShader(GL_VERTEX_SHADER); glShaderSource(pv, 1, &pvs, NULL); glCompileShader(pv); GLuint pf = glCreateShader(GL_FRAGMENT_SHADER); glShaderSource(pf, 1, &pfs, NULL); glCompileShader(pf); s_prevProg = glCreateProgram(); glAttachShader(s_prevProg, pv); glAttachShader(s_prevProg, pf); glLinkProgram(s_prevProg); }
     }
+    } // end if (enN_early > 0) - skip LOWRES + PREV kalo shader OFF
     // MULTI-PASS: kumpulin index enabled sesuai urutan list (atas=belakang, bawah=depan)
     int enIdx[32]; int enN = 0; for (int i = 0; i < g_shaderCount; i++) if (g_shaderEnabled[i] && g_shaderFs[i][0]) enIdx[enN++] = i;
     if (enN == 0) {
@@ -980,7 +995,7 @@ const char *fs_default = "precision mediump float; varying vec2 vUV; uniform sam
             }
         }
         // simpen s_resTex sekarang ke prev buat frame berikutnya
-        { glBindFramebuffer(GL_FRAMEBUFFER, s_prevFBO); glViewport(0, 0, s_prevW, s_prevH); glUseProgram(s_prevProg); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s_resTex); glUniform1i(glGetUniformLocation(s_prevProg, "uTex"), 0); if (s_blitVBO) { glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO); GLint pp = glGetAttribLocation(s_prevProg, "aPos"); GLint pu = glGetAttribLocation(s_prevProg, "aUV"); glEnableVertexAttribArray(pp); glEnableVertexAttribArray(pu); glVertexAttribPointer(pp, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0); glVertexAttribPointer(pu, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float))); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glDisableVertexAttribArray(pp); glDisableVertexAttribArray(pu); } }
+        if (enN > 0 && needsPrev) { glBindFramebuffer(GL_FRAMEBUFFER, s_prevFBO); glViewport(0, 0, s_prevW, s_prevH); glUseProgram(s_prevProg); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s_resTex); glUniform1i(glGetUniformLocation(s_prevProg, "uTex"), 0); if (s_blitVBO) { glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO); GLint pp = glGetAttribLocation(s_prevProg, "aPos"); GLint pu = glGetAttribLocation(s_prevProg, "aUV"); glEnableVertexAttribArray(pp); glEnableVertexAttribArray(pu); glVertexAttribPointer(pp, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0); glVertexAttribPointer(pu, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float))); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glDisableVertexAttribArray(pp); glDisableVertexAttribArray(pu); } }
         glDisable(GL_BLEND);
         glUseProgram(oldProg);
         glBindBuffer(GL_ARRAY_BUFFER, oldVBO);
@@ -995,7 +1010,7 @@ const char *fs_default = "precision mediump float; varying vec2 vUV; uniform sam
     glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST); glDisable(GL_BLEND);
     glUseProgram(s_blitProg);
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s_resTex);
-    glUniform1i(glGetUniformLocation(s_blitProg, "uTex"), 0); { GLint pl0 = glGetUniformLocation(s_blitProg, "uPrevLowTex0"); if (pl0 >= 0) { glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, s_prevLowTex); glUniform1i(pl0, 3); glActiveTexture(GL_TEXTURE0); } GLint pl1 = glGetUniformLocation(s_blitProg, "uPrevLowTex1"); if (pl1 >= 0) { glActiveTexture(GL_TEXTURE4); glBindTexture(GL_TEXTURE_2D, s_prevLowTex1); glUniform1i(pl1, 4); glActiveTexture(GL_TEXTURE0); } GLint pl = glGetUniformLocation(s_blitProg, "uPrevLowTex"); if (pl >= 0) { glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, s_prevLowTex); glUniform1i(pl, 3); glActiveTexture(GL_TEXTURE0); } } { GLint pv = glGetUniformLocation(s_blitProg, "uPrevTex"); if (pv >= 0) { glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, s_prevTex); glUniform1i(pv, 2); glActiveTexture(GL_TEXTURE0); } } { GLint ll = glGetUniformLocation(s_blitProg, "uLowTex"); if (ll >= 0) { glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, s_lowTex); glUniform1i(ll, 1); glActiveTexture(GL_TEXTURE0); } GLint lrl = glGetUniformLocation(s_blitProg, "uLowResolution"); if (lrl >= 0) glUniform2f(lrl, (float)s_lowW, (float)s_lowH); GLint ltl = glGetUniformLocation(s_blitProg, "uLowTexelSize"); if (ltl >= 0) glUniform2f(ltl, s_lowW ? 1.0f / (float)s_lowW : 0.0f, s_lowH ? 1.0f / (float)s_lowH : 0.0f); } { GLint rl = glGetUniformLocation(s_blitProg, "uResolution"); if (rl >= 0) glUniform2f(rl, (float)s_resW, (float)s_resH); GLint tl = glGetUniformLocation(s_blitProg, "uTexelSize"); if (tl >= 0) glUniform2f(tl, s_resW ? 1.0f / (float)s_resW : 0.0f, s_resH ? 1.0f / (float)s_resH : 0.0f); }
+    glUniform1i(glGetUniformLocation(s_blitProg, "uTex"), 0); { GLint pl0 = (needsPrevLow ? glGetUniformLocation(s_blitProg, "uPrevLowTex0") : -1); if (pl0 >= 0) { glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, s_prevLowTex); glUniform1i(pl0, 3); glActiveTexture(GL_TEXTURE0); } GLint pl1 = (needsPrevLow ? glGetUniformLocation(s_blitProg, "uPrevLowTex1") : -1); if (pl1 >= 0) { glActiveTexture(GL_TEXTURE4); glBindTexture(GL_TEXTURE_2D, s_prevLowTex1); glUniform1i(pl1, 4); glActiveTexture(GL_TEXTURE0); } GLint pl = (needsPrevLow ? glGetUniformLocation(s_blitProg, "uPrevLowTex") : -1); if (pl >= 0) { glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, s_prevLowTex); glUniform1i(pl, 3); glActiveTexture(GL_TEXTURE0); } } { GLint pv = (needsPrev ? glGetUniformLocation(s_blitProg, "uPrevTex") : -1); if (pv >= 0) { glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, s_prevTex); glUniform1i(pv, 2); glActiveTexture(GL_TEXTURE0); } } { GLint ll = (needsLow ? glGetUniformLocation(s_blitProg, "uLowTex") : -1); if (ll >= 0) { glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, s_lowTex); glUniform1i(ll, 1); glActiveTexture(GL_TEXTURE0); } GLint lrl = (needsLow ? glGetUniformLocation(s_blitProg, "uLowResolution") : -1); if (lrl >= 0) glUniform2f(lrl, (float)s_lowW, (float)s_lowH); GLint ltl = (needsLow ? glGetUniformLocation(s_blitProg, "uLowTexelSize") : -1); if (ltl >= 0) glUniform2f(ltl, s_lowW ? 1.0f / (float)s_lowW : 0.0f, s_lowH ? 1.0f / (float)s_lowH : 0.0f); } { GLint rl = glGetUniformLocation(s_blitProg, "uResolution"); if (rl >= 0) glUniform2f(rl, (float)s_resW, (float)s_resH); GLint tl = glGetUniformLocation(s_blitProg, "uTexelSize"); if (tl >= 0) glUniform2f(tl, s_resW ? 1.0f / (float)s_resW : 0.0f, s_resH ? 1.0f / (float)s_resH : 0.0f); }
     glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO);
     GLint aPos = glGetAttribLocation(s_blitProg, "aPos"); GLint aUV = glGetAttribLocation(s_blitProg, "aUV");
     glEnableVertexAttribArray(aPos); glEnableVertexAttribArray(aUV);
@@ -1004,7 +1019,7 @@ const char *fs_default = "precision mediump float; varying vec2 vUV; uniform sam
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glDisableVertexAttribArray(aPos); glDisableVertexAttribArray(aUV);
     // simpen s_resTex sekarang ke prev buat frame berikutnya
-    { glBindFramebuffer(GL_FRAMEBUFFER, s_prevFBO); glViewport(0, 0, s_prevW, s_prevH); glUseProgram(s_prevProg); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s_resTex); glUniform1i(glGetUniformLocation(s_prevProg, "uTex"), 0); if (s_blitVBO) { glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO); GLint pp = glGetAttribLocation(s_prevProg, "aPos"); GLint pu = glGetAttribLocation(s_prevProg, "aUV"); glEnableVertexAttribArray(pp); glEnableVertexAttribArray(pu); glVertexAttribPointer(pp, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0); glVertexAttribPointer(pu, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float))); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glDisableVertexAttribArray(pp); glDisableVertexAttribArray(pu); } }
+    if (enN > 0 && needsPrev) { glBindFramebuffer(GL_FRAMEBUFFER, s_prevFBO); glViewport(0, 0, s_prevW, s_prevH); glUseProgram(s_prevProg); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s_resTex); glUniform1i(glGetUniformLocation(s_prevProg, "uTex"), 0); if (s_blitVBO) { glBindBuffer(GL_ARRAY_BUFFER, s_blitVBO); GLint pp = glGetAttribLocation(s_prevProg, "aPos"); GLint pu = glGetAttribLocation(s_prevProg, "aUV"); glEnableVertexAttribArray(pp); glEnableVertexAttribArray(pu); glVertexAttribPointer(pp, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0); glVertexAttribPointer(pu, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float))); glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); glDisableVertexAttribArray(pp); glDisableVertexAttribArray(pu); } }
     // RESTORE state game - balikin semua ke state sebelum blit
     glUseProgram(oldProg);
     glBindBuffer(GL_ARRAY_BUFFER, oldVBO);

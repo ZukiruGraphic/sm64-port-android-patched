@@ -37,6 +37,7 @@ extern "C" float g_LakituZoomDist;
 extern float configZoom; // Zoom Lakitu dari Z+ / Z- baru, bukan DPad game
 extern "C" int g_ZoomHold; // -1 = Z- tahan, 0 = diam, 1 = Z+ tahan
 static float s_lastFingerX = -1;
+static float s_camDxSmooth = 0, s_camDySmooth = 0; // filter drag, biar geser halus
 static SDL_FingerID s_camFingerId = 0; // Jari kamera, biar gak ketimpa jari joystick
 static float s_lastFingerY = -1;
 
@@ -94,8 +95,13 @@ void imgui_menu_process_event(void *ev) {
                 s_lastFingerY = event->tfinger.y;
             }
         } else if (event->type == SDL_FINGERMOTION && !g_editButtonMode && s_lastFingerX >= 0 && event->tfinger.fingerId == s_camFingerId) { // BLOCK: pas edit, jangan muter kamera
-            float dx = event->tfinger.x - s_lastFingerX;
-            float dy = event->tfinger.y - s_lastFingerY;
+            float dxRaw = event->tfinger.x - s_lastFingerX;
+            float dyRaw = event->tfinger.y - s_lastFingerY;
+            // LOW-PASS: 55% input baru + 45% lama, ngilangin geter jari, gerakan nyambung walau tick 30Hz
+            s_camDxSmooth = s_camDxSmooth * 0.45f + dxRaw * 0.55f;
+            s_camDySmooth = s_camDySmooth * 0.45f + dyRaw * 0.55f;
+            float dx = s_camDxSmooth;
+            float dy = s_camDySmooth;
             g_camDragYaw -= dx * 18000.0f * configSensH; // 12000, naik 1.5x dari 8000, biar lebih sensitif! // 8000, dari 80000 kegedean 10x = mental! // 10x (8000*10) // 3x, dikurangi dari 3.5x // 3.5x (8000*3.5), turun dari 30x, 30x kegedean // 30x (8000*30) // x10 (8000*10) // 5x (8000*5)
             g_camDragPitch += dy * 9000.0f * configSensV * (configInvertY ? -1.0f : 1.0f); // 6000, naik 1.5x dari 4000! // 4000, dari 40000! // 10x (4000*10) // 3x, dikurangi dari 3.5x // 3.5x (4000*3.5) // 30x (4000*30) // x10 (4000*10) // 5x (4000*5)
             s_lastFingerX = event->tfinger.x;
@@ -105,7 +111,7 @@ void imgui_menu_process_event(void *ev) {
             if (event->tfinger.fingerId == s_camFingerId) {
                 s_lastFingerX = -1;
                 s_lastFingerY = -1;
-                s_camFingerId = 0;
+                s_camFingerId = 0; s_camDxSmooth = 0; s_camDySmooth = 0;
             }
         }
     }
